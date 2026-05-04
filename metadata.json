@@ -1,0 +1,13 @@
+{
+  "name": "Deen Zone",
+  "description": "A comprehensive Islamic companion app featuring prayer times, Quran, Hadith, Tasbih, and educational resources.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "Prayer Times",
+    "Quran Reader",
+    "Digital Tasbih",
+    "Islamic History"
+  ]
+}

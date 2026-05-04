@@ -1,0 +1,3 @@
+// This folder is for generic UI components (atoms) like Buttons, Inputs, Cards.
+// Example: export const Button = () => ...
+export {};
