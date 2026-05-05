@@ -1,66 +1,77 @@
 export interface Hadith {
   id: number;
-  text: string;
+  arabic: string;
   text_bn: string;
-  source: string;
-  source_bn: string;
-  narrator: string;
   narrator_bn: string;
+  source_bn: string;
+  hadith_number: string;
+  category: string;
+  discussion?: string;
 }
+
+export const categories = [
+  'ঈমান', 'নামাজ', 'রোজা', 'হজ ও জাকাত', 'চরিত্র ও আখলাক', 'বিবিধ'
+];
 
 export const hadiths: Hadith[] = [
   {
     id: 1,
-    text: "Actions are but by intentions and every man shall have only that which he intended.",
-    text_bn: "নিশ্চয়ই আল্লাহ তোমাদের কাজের প্রতিদান নিয়তের ওপর ভিত্তি করে দেবেন।",
-    narrator: "Umar bin Al-Khattab",
+    arabic: "إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ، وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى",
+    text_bn: "নিশ্চয়ই আমল (এর প্রতিদান) নিয়তের ওপর নির্ভরশীল। আর প্রত্যেক ব্যক্তি তার নিয়ত অনুযায়ীই ফল পাবে।",
     narrator_bn: "উমর ইবনুল খাত্তাব (রা.)",
-    source: "Sahih Bukhari & Muslim",
-    source_bn: "সহীহ বুখারী ও মুসলিম"
+    source_bn: "সহীহ বুখারী",
+    hadith_number: "১",
+    category: "ঈমান",
+    discussion: "এই হাদিসটি ইসলামের মূল ভিত্তিগুলোর একটি। যে কোনো নেক আমল কবুল হওয়ার জন্য সহীহ নিয়ত শর্ত। ইমাম বুখারী রহ. তাঁর কিতাব এই হাদিসটি দিয়ে শুরু করেছেন ইখলাসের গুরুত্ব বোঝাতে।"
   },
   {
     id: 2,
-    text: "The best among you are those who have the best manners and character.",
-    text_bn: "তোমাদের মধ্যে সেই ব্যক্তিই সর্বোত্তম, যার চরিত্র সবচেয়ে বেশি সুন্দর।",
-    narrator: "Abdullah ibn Amr",
-    narrator_bn: "আবদুল্লাহ ইবনে আমর (রা.)",
-    source: "Sahih Bukhari",
-    source_bn: "সহীহ বুখারী"
+    arabic: "أَحَبُّ الأَعْمَالِ إِلَى اللَّهِ أَدْوَمُهَا وَإِنْ قَلَّ",
+    text_bn: "আল্লাহর কাছে সবচেয়ে প্রিয় আমল তা-ই, যা নিয়মিত করা হয়, যদিও তা অল্প হয়।",
+    narrator_bn: "আয়েশা (রা.)",
+    source_bn: "সহীহ মুসলিম",
+    hadith_number: "৭৮৩",
+    category: "ঈমান",
+    discussion: "ইবাদতে ধারাবাহিকতা রক্ষা করা অত্যন্ত জরুরি। প্রতিদিন অল্প হলেও আমল করা বড় আয়োজনের অনিয়মিত আমলের চেয়ে উত্তম।"
   },
   {
     id: 3,
-    text: "None of you will have faith till he wishes for his (Muslim) brother what he likes for himself.",
-    text_bn: "তোমাদের কেউ ততক্ষণ পর্যন্ত পূর্ণ মুমিন হতে পারবে না, যতক্ষণ না সে তার ভাইয়ের জন্য তা পছন্দ করবে যা সে নিজের জন্য পছন্দ করে।",
-    narrator: "Anas bin Malik",
-    narrator_bn: "আনাস বিন মালিক (রা.)",
-    source: "Sahih Bukhari",
-    source_bn: "সহীহ বুখারী"
+    arabic: "بُنِيَ الإِسْلاَمُ عَلَى خَمْسٍ",
+    text_bn: "ইসলামের ভিত্তি পাঁচটি স্তম্ভের ওপর স্থাপিত। (কালিমা, নামাজ, রোজা, হজ ও জাকাত)",
+    narrator_bn: "আবদুল্লাহ ইবনে উমর (রা.)",
+    source_bn: "সহীহ বুখারী",
+    hadith_number: "৮",
+    category: "ঈমান",
+    discussion: "এই হাদিসে ইসলামের মূল কাঠামো ব্যাখ্যা করা হয়েছে। এই পাঁচটি স্তম্ভ ছাড়া একজন মুসলিমের দ্বীনী জীবন পূর্ণতা পায় না।"
   },
   {
     id: 4,
-    text: "He who believes in Allah and the Last Day, let him be hospitable to his guest.",
-    text_bn: "যে ব্যক্তি আল্লাহ ও পরকালের প্রতি বিশ্বাস রাখে, সে যেন তার মেহমানকে সম্মান করে।",
-    narrator: "Abu Shurayh al-Khuza’i",
-    narrator_bn: "আবু শুরাইহ আল-খুজাই (রা.)",
-    source: "Sahih Bukhari & Muslim",
-    source_bn: "সহীহ বুখারী ও মুসলিম"
+    arabic: "أَوَّلُ مَا يُحَاسَبُ بِهِ الْعَبْدُ يَوْمَ الْقِيَامَةِ مِنْ عَمَلِهِ صَلاَتُهُ",
+    text_bn: "কিয়ামতের দিন বান্দার আমলের মধ্যে সর্বপ্রথম নামাজের হিসাব নেওয়া হবে।",
+    narrator_bn: "আবু হুরায়রা (রা.)",
+    source_bn: "সুনানে তিরমিযী",
+    hadith_number: "৪১৩",
+    category: "নামাজ",
+    discussion: "নামাজ মুমিনের মেরাজ। পরকালে মুক্তির জন্য নামাজের হিসাব সঠিকভাবে দেওয়া অত্যন্ত গুরুতবপূর্ণ। নামাজ ঠিক থাকলে বাকি আমলও সহজ হবে।"
   },
   {
     id: 5,
-    text: "The strong man is not one who is good at wrestling, but the strong man is one who controls himself in a fit of rage.",
-    text_bn: "প্রকৃত বীর বা শক্তিশালী সে নয় যে কুস্তিতে অন্যকে হারিয়ে দেয়, বরং প্রকৃত বীর সেই যে রাগের সময় নিজেকে নিয়ন্ত্রণ করতে পারে।",
-    narrator: "Abu Hurairah",
+    arabic: "مَنْ صَامَ رَمَضَانَ إِيمَانًا وَاحْتِسَابًا غُفِرَ لَهُ مَا تَقَدَّمَ مِنْ ذَنْبِهِ",
+    text_bn: "যে ব্যক্তি ঈমান ও সওয়াব লাভের আশায় রমজানের রোজা রাখবে, তার পূর্ববর্তী সব গুনাহ মাফ করে দেওয়া হবে।",
     narrator_bn: "আবু হুরায়রা (রা.)",
-    source: "Sahih Bukhari",
-    source_bn: "সহীহ বুখারী"
+    source_bn: "সহীহ বুখারী",
+    hadith_number: "১৯০১",
+    category: "রোজা",
+    discussion: "রমজানের রোজা গুনাহ মাফের এক মহা সুযোগ। তবে রোজা হতে হবে শুধুমাত্র আল্লাহর সন্তুষ্টির জন্য এবং পরিপূর্ণ বিশ্বাস নিয়ে।"
   },
   {
     id: 6,
-    text: "A Muslim is the one from whose tongue and hands the Muslims are safe.",
-    text_bn: "প্রকৃত মুসলিম সেই ব্যক্তি, যার জিহ্বা ও হাত থেকে অন্য মুসলিমরা নিরাপদ থাকে।",
-    narrator: "Abdullah ibn Amr",
-    narrator_bn: "আবদুল্লাহ ইবনে আমর (রা.)",
-    source: "Sahih Bukhari",
-    source_bn: "সহীহ বুখারী"
+    arabic: "خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ",
+    text_bn: "তোমাদের মধ্যে সেই সর্বোত্তম ব্যক্তি, যে নিজে কুরআন শিখে এবং অন্যকে শেখায়।",
+    narrator_bn: "উসমান (রা.)",
+    source_bn: "সহীহ বুখারী",
+    hadith_number: "৫০২৭",
+    category: "চরিত্র ও আখলাক",
+    discussion: "কুরআন শিক্ষা দেওয়া এবং গ্রহণ করা উভয়ই সর্বোত্তম আমল। এটি মুমিনের মর্যাদা বৃদ্ধি করে এবং ইহ ও পরকালে সম্মানের কারণ হয়।"
   }
 ];

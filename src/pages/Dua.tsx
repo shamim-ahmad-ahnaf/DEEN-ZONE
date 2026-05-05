@@ -1,114 +1,257 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Heart, ChevronDown, ChevronUp } from 'lucide-react';
-import { duas, Dua as DuaType } from '../data/duas';
-
+import { Search, Bookmark, BookmarkCheck, Copy, Share2, ArrowLeft, MessageCircle, BookOpen, Heart } from 'lucide-react';
+import { duas, duaCategories, Dua as DuaType } from '../data/duas';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useLanguage } from '../contexts/LanguageContext';
-
-const DuaCard: React.FC<{ dua: DuaType }> = ({ dua }) => {
-  const { t } = useLanguage();
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  return (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden"
-    >
-      <div 
-        className="p-6 cursor-pointer flex items-center justify-between"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="space-y-1">
-          <span className="px-3 py-1 bg-rose-50 text-rose-600 text-[10px] font-black rounded-full uppercase tracking-widest">
-            {dua.category}
-          </span>
-          <h3 className="text-xl font-bold text-slate-800">{dua.title}</h3>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="text-slate-300 hover:text-rose-500 transition-colors">
-            <Heart size={20} />
-          </button>
-          <div className="p-2 bg-slate-50 rounded-full text-slate-400">
-            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-          </div>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="px-6 pb-6 space-y-6"
-          >
-            <p className="arabic-text text-3xl text-right leading-loose text-emerald-950 font-medium">
-              {dua.arabic}
-            </p>
-            
-            <div className="space-y-4 pt-6 border-t border-slate-50">
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.dua.translation}</span>
-                <p className="text-slate-600 text-sm leading-relaxed italic italic">
-                  {dua.translation}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">বঙ্গানুবাদ</span>
-                <p className="text-slate-800 text-base leading-relaxed font-medium">
-                  {dua.bangla}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
 
 export default function Dua() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const filteredDuas = duas.filter(dua => 
-    dua.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    dua.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedDua, setSelectedDua] = useState<DuaType | null>(null);
+  const [bookmarks, setBookmarks] = useLocalStorage<number[]>('dua_bookmarks', []);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const filteredDuas = useMemo(() => {
+    return duas.filter(d => {
+      const matchesSearch = d.text_bn.includes(searchTerm) || 
+                          d.title_bn.includes(searchTerm) || 
+                          d.reference_bn.includes(searchTerm) ||
+                          d.category.includes(searchTerm);
+      const matchesCategory = !selectedCategory || d.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchTerm, selectedCategory]);
+
+  const toggleBookmark = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    setBookmarks(prev => 
+      prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
+    );
+  };
+
+  const handleCopy = (e: React.MouseEvent, dua: DuaType) => {
+    e.stopPropagation();
+    const text = `${dua.title_bn}\n\n${dua.arabic}\n\n${dua.text_bn}\n\n— (${dua.reference_bn})`;
+    navigator.clipboard.writeText(text);
+    setCopiedId(dua.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleShare = (e: React.MouseEvent, dua: DuaType) => {
+    e.stopPropagation();
+    if (navigator.share) {
+      navigator.share({
+        title: 'একটি দোয়া শেয়ার করুন',
+        text: `${dua.title_bn}\n\n${dua.text_bn}\n\n— (${dua.reference_bn})`,
+        url: window.location.href,
+      });
+    }
+  };
+
+  if (selectedDua) {
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="bg-emerald-800 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
+          <button 
+            onClick={() => setSelectedDua(null)}
+            className="absolute top-6 left-6 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors z-20"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          
+          <div className="text-center pt-8 relative z-10">
+            <span className="bg-emerald-500/30 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest mb-6 inline-block backdrop-blur-sm">
+              {selectedDua.category}
+            </span>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Heart size={24} className="text-emerald-400 opacity-50" />
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight">{selectedDua.title_bn}</h1>
+              <Heart size={24} className="text-emerald-400 opacity-50" />
+            </div>
+            <p className="text-emerald-200 font-bold opacity-80">রেফারেন্স: {selectedDua.reference_bn}</p>
+          </div>
+          <motion.div 
+            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, 0] }} 
+            transition={{ duration: 15, repeat: Infinity }}
+            className="absolute -right-12 -bottom-12 opacity-5 pointer-events-none"
+          >
+             <BookOpen size={240} />
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10"
+        >
+          <div className="space-y-4">
+             <div className="flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest">
+               <span className="w-8 h-px bg-emerald-200" />
+               আরবি দোয়া
+             </div>
+             <p className="arabic-text text-3xl md:text-5xl text-right leading-[1.8] text-slate-800 font-medium">
+               {selectedDua.arabic}
+             </p>
+          </div>
+
+          <div className="space-y-4">
+             <div className="flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest">
+               <span className="w-8 h-px bg-emerald-200" />
+               বাংলা অর্থ
+             </div>
+             <p className="text-lg md:text-2xl font-bold text-slate-700 leading-relaxed italic border-l-4 border-emerald-100 pl-6 py-2">
+               "{selectedDua.text_bn}"
+             </p>
+          </div>
+
+          {selectedDua.significance_bn && (
+            <div className="bg-emerald-50/50 rounded-[2rem] p-8 border border-emerald-100 relative">
+              <div className="absolute top-6 right-8 text-emerald-200/50 pointer-events-none">
+                <MessageCircle size={48} />
+              </div>
+              <h4 className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-4">দোয়ার গুরুত্ব ও ফজিলত</h4>
+              <p className="text-slate-600 text-base md:text-lg leading-relaxed italic font-medium">
+                {selectedDua.significance_bn}
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-4 pt-4">
+            <button 
+              onClick={(e) => handleCopy(e, selectedDua)}
+              className="flex items-center gap-2 bg-slate-100 text-slate-600 px-6 py-4 rounded-2xl font-bold hover:bg-emerald-50 hover:text-emerald-700 transition-all active:scale-95"
+            >
+              <Copy size={18} />
+              <span className="text-xs uppercase tracking-widest font-black">{copiedId === selectedDua.id ? 'কপি হয়েছে' : 'কপি করুন'}</span>
+            </button>
+            <button 
+              onClick={(e) => handleShare(e, selectedDua)}
+              className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-4 rounded-2xl font-bold hover:bg-emerald-800 transition-all shadow-lg active:scale-95"
+            >
+              <Share2 size={18} />
+              <span className="text-xs uppercase tracking-widest font-black">শেয়ার করুন</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-rose-600 rounded-3xl p-8 text-white relative overflow-hidden">
+    <div className="space-y-6 pb-20">
+      <div className="bg-emerald-800 rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden shadow-xl">
         <div className="relative z-10">
-          <h1 className="text-3xl font-bold mb-2">{t.dua.title}</h1>
-          <p className="text-rose-100 opacity-80">{t.dua.subtitle}</p>
+          <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.dua.title}</h1>
+          <p className="text-emerald-100 italic opacity-80">{t.dua.subtitle}</p>
         </div>
-        <Heart size={120} className="absolute -right-10 -bottom-10 opacity-10 rotate-12" />
+        <Heart size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12" />
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input 
-          type="text" 
-          placeholder={t.dua.search}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all font-medium"
-        />
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative group">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+          <input 
+            type="text" 
+            placeholder="দোয়া খুঁজুন (বিষয় বা শিরোনাম)..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-16 pr-6 py-5 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-800"
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <button
+          onClick={() => setSelectedCategory(null)}
+          className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all border ${!selectedCategory ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-slate-500 border-slate-100 hover:border-emerald-200'}`}
+        >
+          সব দোয়া
+        </button>
+        {duaCategories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all border ${selectedCategory === cat ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-slate-500 border-slate-100 hover:border-emerald-200'}`}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
       <div className="grid gap-4">
-        {filteredDuas.map((dua) => (
-          <DuaCard key={dua.id} dua={dua} />
-        ))}
-        {filteredDuas.length === 0 && (
-          <div className="text-center py-20 text-slate-400">
-            No duas found matching your search.
-          </div>
-        )}
+        <AnimatePresence mode="popLayout">
+          {filteredDuas.map((dua, i) => {
+            const isBookmarked = bookmarks.includes(dua.id);
+            return (
+              <motion.div 
+                key={dua.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: i * 0.02 }}
+                onClick={() => setSelectedDua(dua)}
+                className="group bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-xl hover:border-emerald-200 cursor-pointer transition-all relative overflow-hidden"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-sm">
+                      {dua.id}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-lg">
+                        {dua.category}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => handleCopy(e, dua)}
+                      className={`p-2.5 rounded-xl transition-all ${copiedId === dua.id ? 'bg-emerald-50 text-emerald-600' : 'text-slate-300 hover:bg-slate-50 hover:text-slate-600'}`}
+                      title="কপি করুন"
+                    >
+                      <Copy size={18} />
+                    </button>
+                    <button 
+                      onClick={(e) => toggleBookmark(e, dua.id)}
+                      className={`p-2.5 rounded-xl transition-all ${isBookmarked ? 'bg-amber-50 text-amber-500' : 'text-slate-300 hover:bg-slate-50 hover:text-amber-500'}`}
+                      title="বুকমার্ক করুন"
+                    >
+                      {isBookmarked ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight group-hover:text-emerald-700 transition-colors">
+                  {dua.title_bn}
+                </h3>
+                <p className="text-slate-600 font-bold text-base mb-4 line-clamp-2 italic opacity-80">
+                  "{dua.text_bn}"
+                </p>
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest opacity-80">রেফারেন্স</span>
+                    <span className="text-xs text-emerald-800/60 font-black uppercase tracking-tight">{dua.reference_bn}</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl opacity-60 group-hover:opacity-100 transition-all border border-transparent group-hover:border-emerald-200">
+                    <span className="text-[10px] font-black uppercase tracking-widest">বিস্তারিত পড়ুন</span>
+                    <ArrowLeft className="rotate-180" size={14} />
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
+      
+      {filteredDuas.length === 0 && (
+        <div className="text-center py-20">
+          <p className="text-slate-400 font-bold italic">দুঃখিত, এই বিষয়ে কোনো দোয়া পাওয়া যায়নি।</p>
+        </div>
+      )}
     </div>
   );
 }

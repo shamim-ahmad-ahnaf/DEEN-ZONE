@@ -119,9 +119,9 @@ export default function Home() {
   });
 
   const dailyHadith = hadiths[0];
-  const hadithText = language === 'bn' ? dailyHadith.text_bn : dailyHadith.text;
-  const hadithNarrator = language === 'bn' ? dailyHadith.narrator_bn : dailyHadith.narrator;
-  const hadithSource = language === 'bn' ? dailyHadith.source_bn : dailyHadith.source;
+  const hadithText = dailyHadith.text_bn;
+  const hadithNarrator = dailyHadith.narrator_bn;
+  const hadithSource = dailyHadith.source_bn;
 
   const quickLinks = [
     { label: t.nav.prayer, icon: Clock, path: '/prayer', color: 'bg-emerald-100 text-emerald-700' },
@@ -218,71 +218,81 @@ export default function Home() {
       </section>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
+        <div className="lg:col-span-8 space-y-12">
           {/* Quick Links Section */}
           <section>
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter font-display">{t.home.quickAccess}</h3>
-              <div className="h-1 w-12 bg-gold-400 rounded-full" />
+            <div className="flex items-center gap-4 mb-8 px-2">
+              <h3 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter font-display">{t.home.quickAccess}</h3>
+              <div className="flex-1 h-[1px] bg-slate-200 relative overflow-hidden hidden sm:block">
+                <div className="absolute inset-y-0 left-0 w-24 bg-gold-400" />
+              </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
               {quickLinks.map((link) => (
                 <motion.button
                   key={link.label}
-                  whileHover={{ y: -8, scale: 1.02 }}
+                  whileHover={{ y: -5, scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(link.path)}
-                  className="flex flex-col items-center gap-4 p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all group"
+                  className="flex items-center gap-4 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-xl hover:shadow-emerald-900/5 transition-all group"
                 >
-                  <div className={`p-4 rounded-2xl ${link.color} transition-all group-hover:rotate-6 group-hover:scale-110 shadow-inner`}>
-                    <link.icon size={28} />
+                  <div className={`p-4 rounded-2xl ${link.color} transition-all group-hover:scale-110 shadow-inner shrink-0 group-hover:rotate-3`}>
+                    <link.icon size={24} />
                   </div>
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] text-center">{link.label}</span>
+                  <div className="flex flex-col items-start overflow-hidden">
+                    <span className="text-[10px] md:text-[11px] font-black text-slate-600 uppercase tracking-[0.2em] leading-tight truncate w-full">{link.label}</span>
+                    <div className="h-0.5 w-0 bg-gold-400 group-hover:w-full transition-all duration-500 mt-1" />
+                  </div>
                 </motion.button>
               ))}
             </div>
           </section>
 
           {/* Spiritual Quote Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <section className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm relative overflow-hidden group h-full">
-              <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-1.5 h-8 bg-emerald-600 rounded-full" />
-                  <h2 className="text-lg font-black text-slate-800 uppercase tracking-tighter font-display">{t.home.verseOfDay}</h2>
+          <div className="flex flex-col gap-6 md:gap-8">
+            <section className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] relative overflow-hidden group">
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-2 h-8 bg-emerald-600 rounded-full" />
+                  <h2 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter font-display">{t.home.verseOfDay}</h2>
                 </div>
-                <div className="space-y-8 flex-1">
-                  <p className="arabic-text text-4xl text-right leading-[1.8] text-emerald-950 font-bold">
-                    فَٱذْكُرُونِىٓ أَذْكُرْكُمْ وَٱشْکُرُوا۟ لِى وَلَا تَكْفُرُونِ
-                  </p>
-                  <div className="pt-8 border-t border-slate-50 mt-auto">
-                    <p className="text-slate-600 leading-relaxed italic text-lg opacity-80">
+                <div className="grid lg:grid-cols-5 gap-8 items-center">
+                  <div className="lg:col-span-3 space-y-6">
+                    <p className="text-slate-600 leading-relaxed italic text-lg md:text-xl opacity-90 font-medium">
                       "{t.home.verseText}"
                     </p>
-                    <p className="text-xs font-black text-emerald-700 mt-6 uppercase tracking-[0.3em] font-display">{t.home.verseRef}</p>
+                    <p className="text-sm font-black text-emerald-700 uppercase tracking-[0.3em] font-display">{t.home.verseRef}</p>
+                  </div>
+                  <div className="lg:col-span-2">
+                    <p className="arabic-text text-4xl md:text-5xl text-right leading-[1.8] text-emerald-950 font-bold drop-shadow-sm">
+                      فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ
+                    </p>
                   </div>
                 </div>
               </div>
-              <div className="absolute -top-12 -left-12 w-48 h-48 bg-emerald-50 rounded-full blur-3xl opacity-40 group-hover:bg-emerald-100 transition-colors" />
+              <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-50 rounded-full blur-[100px] opacity-40 transition-colors group-hover:opacity-60" />
             </section>
 
-            <section className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm relative overflow-hidden group h-full">
-               <div className="absolute top-8 right-8 text-emerald-50/50 group-hover:text-emerald-100/70 transition-colors pointer-events-none">
-                 <Quote size={120} />
+            <section className="bg-emerald-950 rounded-[3rem] p-8 md:p-12 text-white relative overflow-hidden group">
+               <div className="absolute top-10 right-10 text-white/5 pointer-events-none group-hover:text-white/10 transition-all duration-700">
+                 <Quote size={180} />
                </div>
-               <div className="relative z-10 flex flex-col h-full">
-                 <div className="flex items-center gap-3 mb-8">
-                   <div className="w-1.5 h-8 bg-gold-500 rounded-full" />
-                   <h2 className="text-lg font-black text-slate-800 uppercase tracking-tighter font-display">{t.home.hadithOfDay}</h2>
+               <div className="relative z-10">
+                 <div className="flex items-center gap-4 mb-8">
+                   <div className="w-2 h-8 bg-gold-500 rounded-full" />
+                   <h2 className="text-lg md:text-xl font-black text-white/90 uppercase tracking-tighter font-display">{t.home.hadithOfDay}</h2>
                  </div>
-                 <div className="space-y-8 flex-1">
-                   <p className="text-slate-700 text-2xl leading-relaxed font-bold italic font-display">
+                 <div className="space-y-8">
+                   <p className="text-xl md:text-2xl lg:text-3xl leading-snug font-black italic font-display text-emerald-50">
                      "{hadithText}"
                    </p>
-                   <div className="pt-8 border-t border-slate-50 mt-auto">
-                     <p className="text-xs text-gold-600 font-black uppercase tracking-[0.3em] mb-2">{t.hadith.narratedBy} {hadithNarrator}</p>
-                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{hadithSource}</p>
+                   <div className="pt-8 border-t border-white/10 flex items-center justify-between">
+                     <div>
+                       <p className="text-[10px] text-gold-400 font-black uppercase tracking-[0.3em] mb-1">{t.hadith.narratedBy} {hadithNarrator}</p>
+                       <p className="text-[9px] text-emerald-300/60 font-black uppercase tracking-widest">{hadithSource}</p>
+                     </div>
+                     <Book size={32} className="text-gold-500 opacity-20" />
                    </div>
                  </div>
                </div>
@@ -290,37 +300,45 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-8">
+        <div className="lg:col-span-4 flex flex-col gap-8">
           {/* Daily Amal / Tasks */}
-          <div className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
+          <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] relative overflow-hidden flex-1">
+            <div className="flex items-center justify-between mb-10">
               <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter font-display">{t.home.dailyAmal}</h3>
-              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full uppercase tracking-widest shadow-sm">৩ {t.home.goals}</span>
+              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+                <span className="text-xs font-black text-emerald-600">৩</span>
+              </div>
             </div>
-            <ul className="space-y-6">
+            <ul className="space-y-8">
                {t.home.tasks.map((task: string, i: number) => (
-                 <li key={i} className="flex items-center gap-5 text-slate-700 group cursor-pointer">
+                 <li key={i} className="flex items-center gap-5 text-slate-700 group cursor-pointer hover:bg-slate-50 p-4 -m-4 rounded-[1.5rem] transition-all">
                    <div className="relative flex items-center">
                      <input 
                        type="checkbox" 
-                       className="w-7 h-7 rounded-xl border-2 border-slate-200 accent-emerald-600 cursor-pointer peer transition-all hover:border-emerald-400" 
+                       className="w-7 h-7 rounded-lg border-2 border-slate-200 accent-emerald-600 cursor-pointer peer transition-all hover:border-emerald-400" 
                      />
                    </div>
-                   <span className="text-lg font-bold group-hover:text-emerald-700 transition-colors">{task}</span>
+                   <span className="text-lg font-bold group-hover:text-emerald-950 transition-colors leading-snug">{task}</span>
                  </li>
                ))}
             </ul>
+            <div className="mt-12 pt-8 border-t border-slate-50">
+              <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-100/50">
+                <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-2 opacity-60">Motivational Reminder</p>
+                <p className="text-sm font-bold text-emerald-900 leading-relaxed italic">"Slow progress is better than no progress."</p>
+              </div>
+            </div>
           </div>
 
           {/* Charity Card */}
-          <div className="bg-gold-50 border border-gold-100 rounded-[2.5rem] p-10 relative overflow-hidden group">
+          <div className="bg-gold-50 border border-gold-100 rounded-[3rem] p-10 relative overflow-hidden group">
             <div className="relative z-10 flex flex-col h-full">
-              <h3 className="font-black text-emerald-950 text-2xl mb-6 uppercase tracking-tighter font-display">{t.home.charity}</h3>
-              <p className="text-emerald-900 text-base mb-10 leading-relaxed font-medium">
-                {t.home.charityQuote} <br/>
-                <span className="text-[10px] m-1 font-black uppercase tracking-widest opacity-60">
-                  ({language === 'bn' ? 'সহীহ মুসলিম' : 'Sahih Muslim'})
-                </span>
+              <div className="flex items-center gap-3 mb-6">
+                <Heart size={20} className="text-gold-600" />
+                <h3 className="font-black text-emerald-950 text-xl uppercase tracking-tighter font-display">{t.home.charity}</h3>
+              </div>
+              <p className="text-emerald-900 text-base mb-10 leading-relaxed font-bold italic">
+                {t.home.charityQuote}
               </p>
               <button className="mt-auto w-full bg-emerald-900 text-white font-black py-5 rounded-2xl font-display hover:bg-emerald-950 transition-all shadow-xl shadow-emerald-900/20 active:scale-95 uppercase tracking-[0.2em] text-xs">
                 {t.home.donateNow}
@@ -330,6 +348,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }

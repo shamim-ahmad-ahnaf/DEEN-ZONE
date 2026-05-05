@@ -1,104 +1,257 @@
-import { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Quote, ChevronRight, RefreshCw, Bookmark, BookmarkCheck } from 'lucide-react';
-import { hadiths } from '../data/hadiths';
+import { Quote, Search, Bookmark, BookmarkCheck, Copy, Share2, ArrowLeft, MessageCircle, BookOpen } from 'lucide-react';
+import { hadiths, categories, Hadith as HadithType } from '../data/hadiths';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Hadith() {
-  const { t, language } = useLanguage();
-  const [index, setIndex] = useState(0);
+  const { t } = useLanguage();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedHadith, setSelectedHadith] = useState<HadithType | null>(null);
   const [bookmarks, setBookmarks] = useLocalStorage<number[]>('hadith_bookmarks', []);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  const nextHadith = () => {
-    let nextIdx;
-    do {
-      nextIdx = Math.floor(Math.random() * hadiths.length);
-    } while (nextIdx === index && hadiths.length > 1);
-    setIndex(nextIdx);
-  };
+  const filteredHadiths = useMemo(() => {
+    return hadiths.filter(h => {
+      const matchesSearch = h.text_bn.includes(searchTerm) || 
+                          h.narrator_bn.includes(searchTerm) || 
+                          h.source_bn.includes(searchTerm) ||
+                          h.category.includes(searchTerm);
+      const matchesCategory = !selectedCategory || h.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchTerm, selectedCategory]);
 
-  const currentHadith = hadiths[index];
-  const isBookmarked = bookmarks.includes(currentHadith.id);
-
-  const toggleBookmark = () => {
+  const toggleBookmark = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
     setBookmarks(prev => 
-      prev.includes(currentHadith.id) 
-        ? prev.filter(b => b !== currentHadith.id) 
-        : [...prev, currentHadith.id]
+      prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
     );
   };
 
+  const handleCopy = (e: React.MouseEvent, hadith: HadithType) => {
+    e.stopPropagation();
+    const text = `${hadith.arabic}\n\n${hadith.text_bn}\n\n— ${hadith.narrator_bn}\n(${hadith.source_bn}, হাদিস: ${hadith.hadith_number})`;
+    navigator.clipboard.writeText(text);
+    setCopiedId(hadith.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleShare = (e: React.MouseEvent, hadith: HadithType) => {
+    e.stopPropagation();
+    if (navigator.share) {
+      navigator.share({
+        title: 'একট হাদিস শেয়ার করুন',
+        text: `${hadith.text_bn}\n\n— ${hadith.narrator_bn} (${hadith.source_bn})`,
+        url: window.location.href,
+      });
+    }
+  };
+
+  if (selectedHadith) {
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="bg-emerald-800 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
+          <button 
+            onClick={() => setSelectedHadith(null)}
+            className="absolute top-6 left-6 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors z-20"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          
+          <div className="text-center pt-8 relative z-10">
+            <span className="bg-emerald-500/30 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest mb-6 inline-block backdrop-blur-sm">
+              {selectedHadith.category}
+            </span>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Quote size={24} className="text-emerald-400 opacity-50" />
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight">{selectedHadith.source_bn}</h1>
+              <Quote size={24} className="text-emerald-400 opacity-50 rotate-180" />
+            </div>
+            <p className="text-emerald-200 font-bold opacity-80">হাদিস নাম্বার: {selectedHadith.hadith_number}</p>
+          </div>
+          <motion.div 
+            animate={{ scale: [1, 1.1, 1] }} 
+            transition={{ duration: 10, repeat: Infinity }}
+            className="absolute -right-12 -bottom-12 opacity-5 pointer-events-none"
+          >
+             <BookOpen size={240} />
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10"
+        >
+          <div className="space-y-4">
+             <div className="flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest">
+               <span className="w-8 h-px bg-emerald-200" />
+               আরবি হাদিস
+             </div>
+             <p className="arabic-text text-3xl md:text-4xl text-right leading-[1.8] text-slate-800 font-medium">
+               {selectedHadith.arabic}
+             </p>
+          </div>
+
+          <div className="space-y-4">
+             <div className="flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest">
+               <span className="w-8 h-px bg-emerald-200" />
+               বাংলা অনুবাদ
+             </div>
+             <p className="text-lg md:text-xl font-bold text-slate-700 leading-relaxed italic border-l-4 border-emerald-100 pl-6 py-2">
+               "{selectedHadith.text_bn}"
+             </p>
+             <p className="text-slate-500 font-bold text-sm">
+               — বর্ণনায়: {selectedHadith.narrator_bn}
+             </p>
+          </div>
+
+          {selectedHadith.discussion && (
+            <div className="bg-indigo-50/50 rounded-[2rem] p-8 border border-indigo-100 relative">
+              <div className="absolute top-6 right-8 text-indigo-200/50 pointer-events-none">
+                <MessageCircle size={48} />
+              </div>
+              <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-4">হাদিসের আলোচনা ও ব্যাখ্যা</h4>
+              <p className="text-slate-600 text-base md:text-lg leading-relaxed italic font-medium">
+                {selectedHadith.discussion}
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-4 pt-4">
+            <button 
+              onClick={(e) => handleCopy(e, selectedHadith)}
+              className="flex items-center gap-2 bg-slate-100 text-slate-600 px-6 py-4 rounded-2xl font-bold hover:bg-emerald-50 hover:text-emerald-700 transition-all active:scale-95"
+            >
+              <Copy size={18} />
+              <span className="text-xs uppercase tracking-widest font-black">{copiedId === selectedHadith.id ? 'কপি হয়েছে' : 'কপি করুন'}</span>
+            </button>
+            <button 
+              onClick={(e) => handleShare(e, selectedHadith)}
+              className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-4 rounded-2xl font-bold hover:bg-emerald-800 transition-all shadow-lg active:scale-95"
+            >
+              <Share2 size={18} />
+              <span className="text-xs uppercase tracking-widest font-black">শেয়ার করুন</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-black text-emerald-900 uppercase tracking-tighter">{t.hadith.title}</h1>
-        <p className="text-slate-500 font-medium italic">{t.hadith.subtitle}</p>
+    <div className="space-y-6 pb-20">
+      <div className="bg-emerald-800 rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden shadow-xl">
+        <div className="relative z-10">
+          <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.hadith.title}</h1>
+          <p className="text-emerald-100 italic opacity-80">{t.hadith.subtitle}</p>
+        </div>
+        <Quote size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12" />
       </div>
 
-      <div className="w-full max-w-2xl relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentHadith.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl border border-slate-100 relative overflow-hidden"
-          >
-            {/* Decorative background icon */}
-            <div className="absolute -top-6 -right-6 text-emerald-50">
-              <Quote size={120} />
-            </div>
-
-            <div className="relative z-10 space-y-6">
-              <div className="flex items-center justify-between">
-                <Quote className="text-gold-500" size={32} />
-                <button 
-                  onClick={toggleBookmark}
-                  className={`p-3 rounded-2xl transition-all active:scale-95 ${isBookmarked ? 'bg-gold-50 text-gold-500 shadow-inner' : 'bg-slate-50 text-slate-300 hover:text-slate-400'}`}
-                >
-                  {isBookmarked ? <BookmarkCheck size={24} /> : <Bookmark size={24} />}
-                </button>
-              </div>
-              
-              <blockquote className="text-xl md:text-2xl font-bold text-slate-800 leading-relaxed italic">
-                "{language === 'bn' ? currentHadith.text_bn : currentHadith.text}"
-              </blockquote>
-
-              <div className="pt-6 border-t border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <p className="text-emerald-700 font-black uppercase tracking-tight">
-                    {t.hadith.narratedBy} {language === 'bn' ? currentHadith.narrator_bn : currentHadith.narrator}
-                  </p>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
-                    {language === 'bn' ? currentHadith.source_bn : currentHadith.source}
-                  </p>
-                </div>
-                
-                <button 
-                  onClick={nextHadith}
-                  className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-4 rounded-xl font-bold hover:bg-emerald-800 transition-all shadow-lg active:scale-95 whitespace-nowrap"
-                >
-                  <RefreshCw size={18} className="animate-spin-slow" />
-                  <span className="uppercase tracking-widest text-xs">{t.hadith.next}</span>
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Small Progress Dots */}
-        <div className="flex justify-center gap-1.5 mt-8">
-          {hadiths.map((_, i) => (
-            <div 
-              key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-8 bg-gold-500' : 'w-1.5 bg-slate-200'}`}
-            />
-          ))}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative group">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+          <input 
+            type="text" 
+            placeholder="হাদিস খুঁজুন (বিষয়, বর্ণনাকারী বা কিতাব)..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-16 pr-6 py-5 bg-white border border-slate-100 rounded-3xl shadow-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-800"
+          />
         </div>
       </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <button
+          onClick={() => setSelectedCategory(null)}
+          className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all border ${!selectedCategory ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-slate-500 border-slate-100 hover:border-emerald-200'}`}
+        >
+          সব হাদিস
+        </button>
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all border ${selectedCategory === cat ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-slate-500 border-slate-100 hover:border-emerald-200'}`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-4">
+        <AnimatePresence mode="popLayout">
+          {filteredHadiths.map((hadith, i) => {
+            const isBookmarked = bookmarks.includes(hadith.id);
+            return (
+              <motion.div 
+                key={hadith.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: i * 0.02 }}
+                onClick={() => setSelectedHadith(hadith)}
+                className="group bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:border-emerald-200 cursor-pointer transition-all relative overflow-hidden"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-sm">
+                      {hadith.id}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-lg">
+                        {hadith.category}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => handleCopy(e, hadith)}
+                      className={`p-2.5 rounded-xl transition-all ${copiedId === hadith.id ? 'bg-emerald-50 text-emerald-600' : 'text-slate-300 hover:bg-slate-50 hover:text-slate-600'}`}
+                      title="কপি করুন"
+                    >
+                      <Copy size={18} />
+                    </button>
+                    <button 
+                      onClick={(e) => toggleBookmark(e, hadith.id)}
+                      className={`p-2.5 rounded-xl transition-all ${isBookmarked ? 'bg-gold-50 text-gold-500' : 'text-slate-300 hover:bg-slate-50 hover:text-gold-500'}`}
+                      title="বুকমার্ক করুন"
+                    >
+                      {isBookmarked ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-slate-700 font-bold text-lg mb-4 line-clamp-2 italic">
+                  "{hadith.text_bn}"
+                </p>
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">বর্ণনায়: {hadith.narrator_bn}</span>
+                    <span className="text-xs text-emerald-800/60 font-black uppercase tracking-tight">{hadith.source_bn}</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl opacity-60 group-hover:opacity-100 transition-all border border-transparent group-hover:border-emerald-200">
+                    <span className="text-[10px] font-black uppercase tracking-widest">বিস্তারিত পড়ুন</span>
+                    <ArrowLeft className="rotate-180" size={14} />
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+      
+      {filteredHadiths.length === 0 && (
+        <div className="text-center py-20">
+          <p className="text-slate-400 font-bold italic">দুঃখিত, এই বিষয়ে কোনো হাদিস পাওয়া যায়নি।</p>
+        </div>
+      )}
     </div>
   );
 }

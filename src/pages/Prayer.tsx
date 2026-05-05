@@ -4,27 +4,25 @@ import { Clock as ClockIcon, MapPin, ChevronRight, Bell, RefreshCw } from 'lucid
 import { useCurrentTime } from '../hooks/useCurrentTime';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const PRAYER_DATA = [
-  { name: 'Fajr', time: '04:32' },
-  { name: 'Sunrise', time: '05:48' },
-  { name: 'Dhuhr', time: '12:05' },
-  { name: 'Asr', time: '15:34' },
-  { name: 'Maghrib', time: '18:12' },
-  { name: 'Isha', time: '19:35' },
-];
-
-const PRAYER_NAMES: Record<string, { bn: string, en: string }> = {
-  'Fajr': { bn: 'ফজর', en: 'Fajr' },
-  'Sunrise': { bn: 'সূর্যোদয়', en: 'Sunrise' },
-  'Dhuhr': { bn: 'যোহর', en: 'Dhuhr' },
-  'Asr': { bn: 'আসর', en: 'Asr' },
-  'Maghrib': { bn: 'মাগরিব', en: 'Maghrib' },
-  'Isha': { bn: 'এশা', en: 'Isha' },
+const PRAYER_NAMES: Record<string, { bn: string; en: string }> = {
+  Fajr: { bn: 'ফজর', en: 'Fajr' },
+  Sunrise: { bn: 'সূর্যোদয়', en: 'Sunrise' },
+  Dhuhr: { bn: 'যোহর', en: 'Dhuhr' },
+  Asr: { bn: 'আসর', en: 'Asr' },
+  Maghrib: { bn: 'মাগরিব', en: 'Maghrib' },
+  Isha: { bn: 'এশা', en: 'Isha' },
 };
 
 export default function Prayer() {
   const { language, t } = useLanguage();
   const now = useCurrentTime();
+
+  const [prayerTimes, setPrayerTimes] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Record<string, boolean>>({});
+  const [location, setLocation] = useState({ city: 'Dhaka', country: 'Bangladesh', lat: 23.8103, lng: 90.4125 });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [qiblaAngle, setQiblaAngle] = useState<number | null>(null);
+  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
 
   const timeString = now.toLocaleTimeString(language === 'bn' ? 'bn-BD' : 'en-US', { 
     hour: '2-digit', 
@@ -46,6 +44,43 @@ export default function Prayer() {
     bangabdha: '',
     isLoading: true
   });
+
+  useEffect(() => {
+    const fetchPrayerTimes = async () => {
+      setIsRefreshing(true);
+      try {
+        const res = await fetch(
+          `https://api.aladhan.com/v1/timingsByCity?city=${location.city}&country=${location.country}&method=1&school=1`
+        );
+        const data = await res.json();
+        if (data.data) {
+          const timings = data.data.timings;
+          const relevantPrayers = [
+            { name: 'Fajr', time: timings.Fajr.split(' ')[0] },
+            { name: 'Sunrise', time: timings.Sunrise.split(' ')[0] },
+            { name: 'Dhuhr', time: timings.Dhuhr.split(' ')[0] },
+            { name: 'Asr', time: timings.Asr.split(' ')[0] },
+            { name: 'Maghrib', time: timings.Maghrib.split(' ')[0] },
+            { name: 'Isha', time: timings.Isha.split(' ')[0] },
+          ];
+          setPrayerTimes(relevantPrayers);
+        }
+
+        // Fetch Qibla Angle
+        const qiblaRes = await fetch(`https://api.aladhan.com/v1/qibla/${location.lat}/${location.lng}`);
+        const qiblaData = await qiblaRes.json();
+        if (qiblaData.data) {
+          setQiblaAngle(qiblaData.data.direction);
+        }
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+      } finally {
+        setIsRefreshing(false);
+      }
+    };
+
+    fetchPrayerTimes();
+  }, [location]);
 
   useEffect(() => {
     const fetchDates = async () => {
@@ -122,19 +157,75 @@ export default function Prayer() {
     const msUntilMidnight = tomorrow.getTime() - new Date().getTime();
     const timeout = setTimeout(fetchDates, msUntilMidnight);
     return () => clearTimeout(timeout);
-  }, [language]); // Only refetch if language changes, we don't use 'now' as deps to avoid recursion if now changes every sec
+  }, [language]);
+
+  useEffect(() => {
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      // @ts-ignore
+      const heading = e.webkitCompassHeading || (360 - e.alpha);
+      if (heading !== undefined) setDeviceHeading(heading);
+    };
+
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, []);
+
+  const toggleNotification = (name: string) => {
+    setNotifications(prev => ({ ...prev, [name]: !prev[name] }));
+  };
+
+  const refreshLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+          const data = await res.json();
+          if (data.city) {
+            setLocation({ city: data.city, country: data.countryName, lat: latitude, lng: longitude });
+          }
+        } catch (err) {
+          console.error('Reverse geocode failed:', err);
+        }
+      });
+    }
+  };
+
+  const formatTime12h = (time24: string) => {
+    if (!time24) return '--:--';
+    const cleanTime = time24.split(' ')[0];
+    const [hours, minutes] = cleanTime.split(':').map(Number);
+    const period = hours >= 12 ? (language === 'bn' ? 'পিএম' : 'PM') : (language === 'bn' ? 'এএম' : 'AM');
+    const h12 = hours % 12 || 12;
+    const m = minutes.toString().padStart(2, '0');
+    
+    if (language === 'bn') {
+      const bnNums: Record<string, string> = {
+        '0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪',
+        '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯'
+      };
+      const convert = (s: string) => s.split('').map(char => bnNums[char] || char).join('');
+      return `${convert(h12.toString())}:${convert(m)} ${period}`;
+    }
+    
+    return `${h12}:${m} ${period}`;
+  };
 
   // Calculate next prayer and countdown
   const { currentPrayer, nextPrayer, countdown } = useMemo(() => {
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    if (prayerTimes.length === 0) return { currentPrayer: 'Fajr', nextPrayer: 'Fajr', countdown: '--' };
+
+    const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     
     let currentIdx = -1;
     let nextIdx = 0;
 
-    for (let i = 0; i < PRAYER_DATA.length; i++) {
-       const [h, m] = PRAYER_DATA[i].time.split(':').map(Number);
-       const prayerMinutes = h * 60 + m;
-       if (currentMinutes >= prayerMinutes) {
+    for (let i = 0; i < prayerTimes.length; i++) {
+       const [h, m] = prayerTimes[i].time.split(':').map(Number);
+       const prayerSeconds = h * 3600 + m * 60;
+       if (nowSeconds >= prayerSeconds) {
          currentIdx = i;
        } else {
          nextIdx = i;
@@ -142,33 +233,44 @@ export default function Prayer() {
        }
     }
 
-    // Default to last prayer if none matched (e.g. after Isha)
-    if (currentIdx === -1) currentIdx = PRAYER_DATA.length - 1;
+    if (currentIdx === -1) currentIdx = prayerTimes.length - 1;
 
-    const nextTime = PRAYER_DATA[nextIdx].time.split(':').map(Number);
-    let diff = (nextTime[0] * 60 + nextTime[1]) - currentMinutes;
-    if (diff < 0) diff += 24 * 60; // Next day
+    const nextTime = prayerTimes[nextIdx].time.split(':').map(Number);
+    let diff = (nextTime[0] * 3600 + nextTime[1] * 60) - nowSeconds;
+    if (diff < 0) diff += 24 * 3600;
 
-    const h = Math.floor(diff / 60);
-    const m = diff % 60;
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+
+    const bnNums: Record<string, string> = {
+      '0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪',
+      '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯'
+    };
+    const toBn = (n: number) => n.toString().split('').map(c => bnNums[c] || c).join('');
 
     return {
-      currentPrayer: PRAYER_DATA[currentIdx].name,
-      nextPrayer: PRAYER_DATA[nextIdx].name,
+      currentPrayer: prayerTimes[currentIdx].name,
+      nextPrayer: prayerTimes[nextIdx].name,
       countdown: language === 'bn' 
-        ? `${h} ঘণ্টা ${m} মিনিট` 
-        : `${h}h ${m}m`
+        ? `${toBn(h)} ঘণ্টা ${toBn(m)} মিনিট ${toBn(s)} সেকেন্ড` 
+        : `${h}h ${m}m ${s}s`
     };
-  }, [now, language]);
+  }, [now, language, prayerTimes]);
 
   return (
     <div className="space-y-6 pb-16">
       <section className="bg-emerald-900 rounded-[2.5rem] p-6 md:p-8 text-white text-center relative overflow-hidden shadow-2xl">
         <div className="relative z-10">
-          <div className="flex items-center justify-center gap-2 text-emerald-200 font-bold mb-4">
-            <MapPin size={16} />
-            <span className="text-sm md:text-base">{t.prayer.dhaka}</span>
-          </div>
+          <button 
+            onClick={refreshLocation}
+            className="flex items-center justify-center gap-2 text-emerald-200 font-bold mb-4 mx-auto hover:text-white transition-colors"
+          >
+            <MapPin size={16} className={isRefreshing ? 'animate-bounce' : ''} />
+            <span className="text-sm md:text-base">
+              {location.city === 'Dhaka' ? t.prayer.dhaka : `${location.city}, ${location.country}`}
+            </span>
+          </button>
           
           <div className="mb-8 md:mb-6">
              <div className="text-4xl md:text-6xl font-black tabular-nums tracking-tighter mb-8 transition-all hover:scale-110 cursor-default">
@@ -203,10 +305,10 @@ export default function Prayer() {
           <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-[2rem] p-5 md:p-6 shadow-xl">
             <h2 className="text-[10px] md:text-xs font-bold text-emerald-300 uppercase tracking-widest mb-1">{t.prayer.current}</h2>
             <div className="text-2xl md:text-3xl font-bold mb-2">
-              {PRAYER_NAMES[currentPrayer][language]}
+              {PRAYER_NAMES[currentPrayer] ? PRAYER_NAMES[currentPrayer][language] : '...'}
             </div>
             <div className="text-emerald-100 text-xs md:text-sm">
-              {t.prayer.next}: {PRAYER_NAMES[nextPrayer][language]} {t.prayer.countdown} <span className="font-bold text-gold-400">{countdown}</span>
+              {t.prayer.next}: {PRAYER_NAMES[nextPrayer] ? PRAYER_NAMES[nextPrayer][language] : '...'} {t.prayer.countdown} <span className="font-bold text-gold-400">{countdown}</span>
             </div>
           </div>
         </div>
@@ -219,9 +321,16 @@ export default function Prayer() {
         layout
         className="grid gap-3"
       >
-        {PRAYER_DATA.map((prayer, i) => {
+        {prayerTimes.length === 0 ? (
+          <div className="p-10 text-center text-slate-400 font-bold">
+            <RefreshCw size={24} className="animate-spin mx-auto mb-4" />
+            Loading Prayer Times...
+          </div>
+        ) : prayerTimes.map((prayer, i) => {
           const isCurrent = prayer.name === currentPrayer;
-          const translatedName = PRAYER_NAMES[prayer.name][language];
+          const translatedName = PRAYER_NAMES[prayer.name] ? PRAYER_NAMES[prayer.name][language] : prayer.name;
+          const isNotified = notifications[prayer.name];
+
           return (
             <motion.div 
               key={prayer.name}
@@ -246,7 +355,7 @@ export default function Prayer() {
                   <h3 className={`text-sm md:text-base font-bold ${isCurrent ? 'text-emerald-900' : 'text-slate-800'}`}>
                     {translatedName}
                   </h3>
-                  <p className="text-[10px] md:text-sm text-slate-500 font-medium">{prayer.time}</p>
+                  <p className="text-[10px] md:text-sm text-slate-500 font-medium">{formatTime12h(prayer.time)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 md:gap-3">
@@ -255,8 +364,11 @@ export default function Prayer() {
                     {t.prayer.currentStatus}
                   </span>
                 )}
-                <button className={`p-2 rounded-lg ${isCurrent ? 'text-emerald-600' : 'text-slate-300'}`}>
-                  <Bell size={18} className="md:w-5 md:h-5" />
+                <button 
+                  onClick={() => toggleNotification(prayer.name)}
+                  className={`p-2 rounded-lg transition-colors ${isNotified ? 'bg-emerald-100 text-emerald-600' : 'text-slate-300 hover:bg-slate-50'}`}
+                >
+                  <Bell size={18} fill={isNotified ? "currentColor" : "none"} className="md:w-5 md:h-5" />
                 </button>
               </div>
             </motion.div>
@@ -267,15 +379,25 @@ export default function Prayer() {
       <div className="bg-white border border-slate-100 p-6 rounded-3xl flex items-center justify-between shadow-sm">
         <div>
           <h3 className="font-bold text-slate-800 text-lg">{t.prayer.qibla}</h3>
-          <p className="text-slate-500 text-sm">Target: 265° W</p>
+          <p className="text-slate-500 text-sm">
+            {qiblaAngle ? `${Math.round(qiblaAngle)}°` : 'Calculating...'}
+            {deviceHeading !== null && ' (Compass Active)'}
+          </p>
         </div>
-        <div className="relative w-16 h-16 bg-slate-50 rounded-full border-2 border-slate-100 flex items-center justify-center">
+        <div className="relative w-16 h-16 bg-slate-50 rounded-full border-2 border-slate-100 flex items-center justify-center overflow-hidden">
+           {/* Compass Rose Backdrop */}
+           <div className="absolute inset-0 opacity-10 flex items-center justify-center">
+             <div className="w-full h-0.5 bg-slate-400 rotate-0" />
+             <div className="w-full h-0.5 bg-slate-400 rotate-90" />
+           </div>
+           
            <motion.div 
-             animate={{ rotate: 265 }}
-             transition={{ duration: 1, ease: "easeOut" }}
-             className="text-emerald-600"
+             animate={{ rotate: (qiblaAngle || 0) - (deviceHeading || 0) }}
+             transition={{ type: "spring", stiffness: 50, damping: 20 }}
+             className="text-emerald-600 relative z-10"
            >
              <ChevronRight size={32} className="-rotate-90" />
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-4 bg-emerald-600/20 rounded-full" />
            </motion.div>
         </div>
       </div>

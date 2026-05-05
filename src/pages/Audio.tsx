@@ -1,105 +1,256 @@
-import { useState, useRef } from 'react';
-import { motion } from 'motion/react';
-import { Mic2, Play, Pause, Headphones, ListMusic } from 'lucide-react';
+import { useState, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Mic2, Play, Pause, Headphones, ListMusic, Search, Music, Mic, Book } from 'lucide-react';
 import { audioItems, AudioItem } from '../data/media';
-
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Audio() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const [activeCategory, setActiveCategory] = useState<AudioItem['category']>('Quran');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [pausedId, setPausedId] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const togglePlay = (item: AudioItem) => {
+    if (!audioRef.current) return;
+
     if (playingId === item.id) {
-      audioRef.current?.pause();
+      audioRef.current.pause();
       setPlayingId(null);
+      setPausedId(item.id);
     } else {
-      if (audioRef.current) {
-        audioRef.current.src = item.url;
-        audioRef.current.play();
-        setPlayingId(item.id);
+      try {
+        const isResuming = pausedId === item.id;
+        
+        if (!isResuming) {
+          audioRef.current.pause();
+          audioRef.current.src = item.url;
+          audioRef.current.load();
+        }
+        
+        const playPromise = audioRef.current.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setPlayingId(item.id);
+              setPausedId(null);
+            })
+            .catch((error) => {
+              if (error.name !== 'AbortError') {
+                console.error("Playback failed:", error.name);
+                setPlayingId(null);
+              }
+            });
+        }
+      } catch (e) {
+        console.error("Audio trigger failed:", e);
+        setPlayingId(null);
       }
     }
   };
 
+  const categories: { key: AudioItem['category']; label: string; icon: any }[] = [
+    { key: 'Quran', label: language === 'bn' ? 'কুরআন তিলাওয়াত' : 'Quran', icon: Book },
+    { key: 'Nasheed', label: language === 'bn' ? 'ইসলামিক সঙ্গীত' : 'Nasheed', icon: Music },
+    { key: 'Bayan', label: language === 'bn' ? 'ইসলাহি বয়ান' : 'Bayan', icon: Mic },
+  ];
+
+  const filteredItems = useMemo(() => {
+    return audioItems.filter(item => {
+      if (!item || !item.id || !item.title_bn) return false;
+      const matchesCategory = item.category === activeCategory;
+      const titleText = language === 'bn' ? item.title_bn : item.title;
+      const artistText = language === 'bn' ? item.artist_bn : item.artist;
+      const matchesSearch = titleText.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          artistText.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [activeCategory, searchTerm, language]);
+
+  const currentlyLoadedItem = useMemo(() => {
+    return audioItems.find(i => i.id === (playingId || pausedId));
+  }, [playingId, pausedId]);
+
   return (
-    <div className="space-y-8 pb-20">
-      <section className="bg-emerald-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
+    <div className="space-y-8 pb-32">
+      <section className="bg-emerald-950 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl">
         <div className="relative z-10">
-          <h1 className="text-3xl font-bold mb-2 text-white">{t.audio.title}</h1>
-          <p className="text-emerald-100 opacity-80">{t.audio.subtitle}</p>
+          <h1 className="text-4xl font-black mb-2 text-white uppercase tracking-tighter text-balance">
+            {language === 'bn' ? 'অডিও লাইব্রেরি' : t.audio.title}
+          </h1>
+          <p className="text-emerald-200 opacity-80 font-bold italic">{t.audio.subtitle}</p>
         </div>
-        <Headphones size={120} className="absolute -right-10 -bottom-10 opacity-10 rotate-12" />
+        <Headphones size={180} className="absolute -right-10 -top-10 opacity-5 rotate-12" />
       </section>
 
       <audio 
         ref={audioRef} 
-        onEnded={() => setPlayingId(null)}
+        onEnded={() => {
+          setPlayingId(null);
+          setPausedId(null);
+        }}
+        preload="auto"
+        onError={(e) => {
+          const error = (e.target as HTMLAudioElement).error;
+          console.error("Audio Load Error:", error?.code, error?.message);
+          setPlayingId(null);
+        }}
         className="hidden"
       />
 
-      <div className="grid gap-4">
-        {audioItems.map((item) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`
-              p-6 rounded-3xl border flex items-center justify-between transition-all
-              ${playingId === item.id 
-                ? 'bg-emerald-50 border-emerald-300 shadow-md ring-2 ring-emerald-500/20' 
-                : 'bg-white border-slate-100 shadow-sm'}
-            `}
-          >
-            <div className="flex items-center gap-5">
-              <div className={`
-                w-16 h-16 rounded-2xl flex items-center justify-center transition-colors
-                ${playingId === item.id ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400'}
-              `}>
-                {playingId === item.id ? (
-                  <div className="flex gap-1 items-end h-6">
-                    <motion.div animate={{ height: [8, 20, 12, 24, 8] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1 bg-white rounded-full" />
-                    <motion.div animate={{ height: [12, 8, 24, 16, 12] }} transition={{ repeat: Infinity, duration: 0.8 }} className="w-1 bg-white rounded-full" />
-                    <motion.div animate={{ height: [20, 16, 8, 12, 20] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1 bg-white rounded-full" />
-                  </div>
-                ) : (
-                  <Mic2 size={24} />
-                )}
-              </div>
-              <div>
-                <h3 className={`font-bold ${playingId === item.id ? 'text-emerald-900' : 'text-slate-800'}`}>
-                  {item.title}
-                </h3>
-                <p className="text-sm text-slate-500 font-medium">By {item.reciter}</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{item.duration}</span>
-                </div>
-              </div>
-            </div>
-
+      <div className="flex flex-col gap-6">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {categories.map((cat) => (
             <button
-              onClick={() => togglePlay(item)}
+              key={cat.key}
+              onClick={() => setActiveCategory(cat.key)}
               className={`
-                w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90
-                ${playingId === item.id ? 'bg-rose-500 text-white hover:bg-rose-600' : 'bg-emerald-900 text-white hover:bg-emerald-800'}
+                px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all flex items-center gap-2 border
+                ${activeCategory === cat.key 
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20' 
+                  : 'bg-white text-slate-500 border-slate-100 hover:border-emerald-200 shadow-sm'}
               `}
             >
-              {playingId === item.id ? <Pause size={20} /> : <Play size={20} className="ml-1" />}
+              <cat.icon size={16} />
+              {cat.label}
             </button>
-          </motion.div>
-        ))}
+          ))}
+        </div>
+
+        <div className="relative group">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+          <input 
+            type="text" 
+            placeholder={language === 'bn' ? 'আপনার অডিও খুঁজুন...' : 'Search your audio...'}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-16 pr-6 py-5 bg-white border border-slate-100 rounded-[2rem] shadow-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-800"
+          />
+        </div>
       </div>
 
-      <div className="bg-slate-50 border border-slate-100 p-8 rounded-[2.5rem] flex flex-col items-center text-center">
-        <div className="p-4 bg-white rounded-2xl shadow-sm mb-4">
-          <ListMusic className="text-emerald-600" size={32} />
+      <div className="grid gap-3">
+        <AnimatePresence mode="popLayout">
+          {filteredItems.map((item) => (
+            <motion.div
+              layout
+              key={item.id}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: -10 }}
+              className={`
+                p-6 rounded-[2.5rem] border flex items-center justify-between transition-all group
+                ${playingId === item.id 
+                  ? 'bg-emerald-50 border-emerald-300 shadow-xl ring-4 ring-emerald-500/10' 
+                  : 'bg-white border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-emerald-200'}
+              `}
+            >
+              <div className="flex items-center gap-5">
+                <div className={`
+                  w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500
+                  ${playingId === item.id ? 'bg-emerald-600 text-white shadow-xl rotate-0 scale-110' : 'bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600'}
+                `}>
+                  {playingId === item.id ? (
+                    <div className="flex gap-1.5 items-end h-7">
+                      <motion.div animate={{ height: [8, 24, 12, 28, 8] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                      <motion.div animate={{ height: [14, 8, 28, 18, 14] }} transition={{ repeat: Infinity, duration: 0.8 }} className="w-1.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                      <motion.div animate={{ height: [24, 18, 8, 14, 24] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                    </div>
+                  ) : (
+                    item.category === 'Quran' ? <Book size={28} /> : 
+                    item.category === 'Nasheed' ? <Music size={28} /> : 
+                    <Mic size={28} />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <h3 className={`text-xl font-black tracking-tight ${playingId === item.id ? 'text-emerald-900' : 'text-slate-800'}`}>
+                    {language === 'bn' ? item.title_bn : item.title}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">
+                      {language === 'bn' ? item.artist_bn : item.artist}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => togglePlay(item)}
+                className={`
+                  w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl active:scale-95
+                  ${playingId === item.id ? 'bg-rose-500 text-white hover:bg-rose-600 animate-pulse' : 'bg-slate-900 text-white hover:bg-emerald-900'}
+                  ${pausedId === item.id ? 'bg-emerald-600 ring-4 ring-emerald-500/20' : ''}
+                `}
+              >
+                {playingId === item.id ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        {filteredItems.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-200 text-slate-400 font-bold italic">
+            {language === 'bn' ? 'কোনো অডিও পাওয়া যায়নি।' : 'No audio found.'}
+          </div>
+        )}
+      </div>
+
+      {/* Floating Player Control */}
+      <AnimatePresence>
+        {(playingId || pausedId) && currentlyLoadedItem && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-24 left-6 right-6 bg-slate-900 border border-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.4)] rounded-[2rem] p-4 flex items-center justify-between z-50 overflow-hidden"
+          >
+             <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none" />
+            
+            <div className="flex items-center gap-4 relative z-10">
+              <div className={`
+                w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg transition-all duration-700
+                ${playingId ? 'bg-emerald-600 shadow-emerald-500/20 rotate-0' : 'bg-slate-700 rotate-12 opacity-50'}
+              `}>
+                <Music size={20} className={playingId ? 'animate-pulse' : ''} />
+              </div>
+              <div className="overflow-hidden">
+                <h4 className="font-black text-white truncate max-w-[140px] text-sm tracking-tight">
+                  {language === 'bn' ? currentlyLoadedItem.title_bn : currentlyLoadedItem.title}
+                </h4>
+                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest truncate">
+                  {language === 'bn' ? currentlyLoadedItem.artist_bn : currentlyLoadedItem.artist}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 relative z-10">
+              <button 
+                onClick={() => togglePlay(currentlyLoadedItem)}
+                className={`
+                  w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all duration-300
+                  ${playingId ? 'bg-rose-500 text-white' : 'bg-emerald-600 text-white'}
+                `}
+              >
+                {playingId ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="bg-slate-900 text-slate-400 p-10 rounded-[3rem] border border-slate-800 flex flex-col items-center text-center relative overflow-hidden group">
+        <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="p-5 bg-slate-800 rounded-3xl shadow-inner mb-6 relative z-10 transition-transform group-hover:scale-110">
+          <ListMusic className="text-emerald-500" size={40} />
         </div>
-        <h3 className="font-bold text-slate-800 mb-1">{t.audio.playlistTitle}</h3>
-        <p className="text-slate-500 text-sm mb-6 max-w-xs leading-relaxed">
+        <h3 className="font-black text-2xl text-white mb-2 relative z-10 uppercase tracking-tighter">
+          {language === 'bn' ? 'নতুন প্লেলিস্ট' : t.audio.playlistTitle}
+        </h3>
+        <p className="text-slate-500 font-bold text-sm mb-8 max-w-sm leading-relaxed relative z-10 opacity-80">
           {t.audio.playlistDesc}
         </p>
-        <button className="px-8 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-white hover:shadow-md transition-all active:scale-95">
+        <button className="px-10 py-5 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-500 hover:text-white hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] transition-all active:scale-95 relative z-10 border-b-4 border-slate-200 active:border-b-0">
           {t.common.comingSoon}
         </button>
       </div>

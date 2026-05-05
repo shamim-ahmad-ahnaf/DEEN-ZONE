@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileText, ChevronRight, X, Calendar, User } from 'lucide-react';
+import { FileText, X, Calendar, User, BookOpen, Share2, ArrowLeft, Bookmark } from 'lucide-react';
 import { articles, Article } from '../data/educational';
-
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Articles() {
@@ -14,27 +13,37 @@ export default function Articles() {
     activeCategory === 'All' || article.category === activeCategory
   );
 
-  const categories: ('All' | Article['category'])[] = ['All', 'Spiritual', 'Society', 'Health', 'Youth'];
+  const categories: ('All' | Article['category'])[] = ['All', 'Spiritual', 'Society', 'Health', 'Knowledge', 'Youth'];
+
+  const handleShare = (article: Article) => {
+    if (navigator.share) {
+      navigator.share({
+        title: language === 'bn' ? article.title_bn : article.title,
+        text: language === 'bn' ? article.excerpt_bn : article.excerpt,
+        url: window.location.href,
+      });
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      <section className="bg-blue-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
+    <div className="space-y-8 pb-20">
+      <section className="bg-emerald-800 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl">
         <div className="relative z-10">
-          <h1 className="text-3xl font-bold mb-2">{t.nav.articles}</h1>
-          <p className="text-blue-100 italic">{t.articles.subtitle}</p>
+          <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.nav.articles}</h1>
+          <p className="text-emerald-100 italic opacity-80">{t.articles.subtitle}</p>
         </div>
-        <FileText size={120} className="absolute -right-10 -bottom-10 opacity-10 rotate-12" />
+        <FileText size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12" />
       </section>
 
-      <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-none">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`px-5 py-2.5 rounded-2xl font-bold whitespace-nowrap transition-all ${
+            className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all border ${
               activeCategory === cat 
-              ? 'bg-blue-900 text-white shadow-lg shadow-blue-900/20' 
-              : 'bg-white text-slate-600 border border-slate-100 hover:border-blue-200'
+              ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' 
+              : 'bg-white text-slate-500 border-slate-100 hover:border-emerald-200'
             }`}
           >
             {cat === 'All' ? t.articles.all : (language === 'bn' ? articles.find(a => a.category === cat)?.category_bn || cat : cat)}
@@ -43,7 +52,7 @@ export default function Articles() {
       </div>
 
       <div className="grid gap-6">
-        {filteredArticles.map((article) => {
+        {filteredArticles.map((article, i) => {
           const title = language === 'bn' ? article.title_bn : article.title;
           const excerpt = language === 'bn' ? article.excerpt_bn : article.excerpt;
           const category = language === 'bn' ? article.category_bn : article.category;
@@ -53,26 +62,44 @@ export default function Articles() {
           return (
             <motion.div
               key={article.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -4 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
               onClick={() => setSelectedArticle(article)}
-              className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col md:flex-row cursor-pointer transition-all hover:shadow-md"
+              className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col md:flex-row cursor-pointer transition-all hover:shadow-xl hover:border-emerald-200"
             >
-              <div className="h-48 md:h-auto md:w-64 flex-shrink-0 bg-slate-100">
-                <img src={article.image} alt={title} className="w-full h-full object-cover" />
+              <div className="h-56 md:h-auto md:w-72 flex-shrink-0 bg-slate-100 relative overflow-hidden">
+                <img 
+                  src={article.image || 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=800&q=80'} 
+                  alt={title} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <div className="p-6 space-y-4 flex flex-col justify-center">
+              <div className="p-8 flex-1 flex flex-col justify-between">
                 <div>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-full uppercase tracking-widest">
-                    {category}
-                  </span>
-                  <h3 className="text-xl font-bold text-slate-800 mt-2 line-clamp-2">{title}</h3>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-black rounded-lg uppercase tracking-widest">
+                      {category}
+                    </span>
+                    <div className="h-1 w-1 bg-slate-200 rounded-full" />
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{date}</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-800 leading-tight mb-3 group-hover:text-emerald-700 transition-colors">{title}</h3>
+                  <p className="text-slate-500 font-bold line-clamp-2 italic leading-relaxed">{excerpt}</p>
                 </div>
-                <p className="text-slate-500 text-sm line-clamp-2 italic">{excerpt}</p>
-                <div className="flex items-center gap-4 pt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <span className="flex items-center gap-1.5"><Calendar size={12} /> {date}</span>
-                  <span className="flex items-center gap-1.5"><User size={12} /> {author}</span>
+                
+                <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                      <User size={14} />
+                    </div>
+                    <span className="text-xs font-black text-slate-500 uppercase tracking-tight">{author}</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl opacity-60 group-hover:opacity-100 transition-all border border-transparent group-hover:border-emerald-200">
+                    <span className="text-[10px] font-black uppercase tracking-widest">বিস্তারিত পড়ুন</span>
+                    <ArrowLeft className="rotate-180" size={14} />
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -82,65 +109,105 @@ export default function Articles() {
 
       <AnimatePresence>
         {selectedArticle && (
-          <>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedArticle(null)}
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]"
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-x-4 top-[5%] bottom-[5%] md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-2xl bg-white rounded-[2.5rem] shadow-2xl z-[110] overflow-y-auto custom-scrollbar"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-3xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="sticky top-0 right-0 p-6 flex justify-end z-20 pointer-events-none">
+              <div className="absolute top-6 right-6 z-20 flex gap-2">
+                <button 
+                  onClick={() => handleShare(selectedArticle)}
+                  className="p-3 bg-white/10 backdrop-blur-md rounded-2xl text-white hover:bg-white/20 transition-colors shadow-lg"
+                >
+                  <Share2 size={20} />
+                </button>
                 <button 
                   onClick={() => setSelectedArticle(null)}
-                  className="p-2.5 bg-slate-900/10 backdrop-blur-md rounded-full text-slate-900 pointer-events-auto hover:bg-slate-950/20 transition-colors"
+                  className="p-3 bg-white/10 backdrop-blur-md rounded-2xl text-white hover:bg-white/20 transition-colors shadow-lg"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="space-y-8 pb-12">
-                <div className="h-64 md:h-80 w-full bg-slate-100 overflow-hidden -mt-20">
-                  <img src={selectedArticle.image} alt={language === 'bn' ? selectedArticle.title_bn : selectedArticle.title} className="w-full h-full object-cover" />
+              <div className="h-64 md:h-80 w-full overflow-hidden relative">
+                <img 
+                  src={selectedArticle.image || 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=800&q=80'} 
+                  alt={language === 'bn' ? selectedArticle.title_bn : selectedArticle.title} 
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-10 left-10 right-10">
+                  <span className="px-4 py-1.5 bg-emerald-500 text-white text-[10px] font-black rounded-full uppercase tracking-widest inline-block mb-4 shadow-xl">
+                    {language === 'bn' ? selectedArticle.category_bn : selectedArticle.category}
+                  </span>
+                  <h2 className="text-3xl md:text-4xl font-black text-white leading-tight">
+                    {language === 'bn' ? selectedArticle.title_bn : selectedArticle.title}
+                  </h2>
                 </div>
-                
-                <div className="px-8 md:px-12 space-y-6">
-                  <div className="space-y-4">
-                    <span className="px-4 py-1.5 bg-blue-50 text-blue-700 text-xs font-black rounded-full uppercase tracking-widest inline-block">
-                      {language === 'bn' ? selectedArticle.category_bn : selectedArticle.category}
-                    </span>
-                    <h2 className="text-3xl font-extrabold text-slate-800 leading-tight">
-                      {language === 'bn' ? selectedArticle.title_bn : selectedArticle.title}
-                    </h2>
-                    <div className="flex items-center gap-6 text-sm font-bold text-slate-400 uppercase tracking-[0.1em] border-b border-slate-50 pb-6">
-                       <span>{language === 'bn' ? selectedArticle.date_bn : selectedArticle.date}</span>
-                       <span>{t.articles.by} {language === 'bn' ? selectedArticle.author_bn : selectedArticle.author}</span>
-                    </div>
+              </div>
+
+              <div className="p-8 md:p-12 overflow-y-auto custom-scrollbar flex-1 space-y-10">
+                <div className="flex items-center gap-6 text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-6">
+                   <div className="flex items-center gap-2">
+                     <Calendar size={14} className="text-emerald-500" />
+                     <span>{language === 'bn' ? selectedArticle.date_bn : selectedArticle.date}</span>
+                   </div>
+                   <div className="w-1.5 h-1.5 bg-slate-100 rounded-full" />
+                   <div className="flex items-center gap-2">
+                     <User size={14} className="text-emerald-500" />
+                     <span>{language === 'bn' ? selectedArticle.author_bn : selectedArticle.author}</span>
+                   </div>
+                </div>
+
+                <div className="space-y-8">
+                  <div className="relative">
+                    <div className="absolute -left-6 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-full opacity-20" />
+                    <p className="text-xl md:text-2xl text-slate-800 leading-relaxed font-bold italic pl-4">
+                       "{language === 'bn' ? selectedArticle.content_bn : selectedArticle.content}"
+                    </p>
                   </div>
 
-                  <div className="space-y-6">
-                    <p className="text-xl text-slate-800 leading-relaxed font-bold border-l-4 border-blue-500 pl-6 italic">
-                       {language === 'bn' ? selectedArticle.content_bn : selectedArticle.content}
-                    </p>
-                    <p className="text-slate-600 leading-loose text-lg">
-                      {t.articles.lorem1}
-                    </p>
-                    <p className="text-slate-600 leading-loose text-lg">
-                      {t.articles.lorem2}
+                  {selectedArticle.reference_bn && (
+                    <div className="bg-emerald-50 rounded-3xl p-8 border border-emerald-100 relative overflow-hidden group">
+                      <Bookmark className="absolute -right-4 -top-4 opacity-5 text-emerald-900 rotate-12" size={80} />
+                      <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em] mb-4">তথ্যসূত্র ও দলিলসমূহ</h4>
+                      <p className="text-emerald-900 font-bold text-lg italic">
+                        {selectedArticle.reference_bn}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-6 pt-4">
+                    <p className="text-slate-600 leading-loose text-lg font-medium">
+                      প্রবন্ধটির বিস্তারিত আলোচনা ও ব্যাখ্যা এখানে প্রদান করা হয়েছে। ইসলামি জ্ঞানের আলো ছড়িয়ে দিতে এই ধরণের প্রবন্ধগুলো অত্যন্ত গুরুত্বপূর্ণ ভূমিকা পালন করে। সঠিক রেফারেন্স এবং নির্ভরযোগ্য উৎস থেকে তথ্য গ্রহণ করাই আমাদের মূল লক্ষ্য।
                     </p>
                   </div>
+                </div>
+
+                <div className="pt-10 flex justify-center">
+                  <button 
+                    onClick={() => setSelectedArticle(null)}
+                    className="flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-emerald-800 transition-all shadow-2xl active:scale-95"
+                  >
+                    <BookOpen size={18} />
+                    পড়া শেষ হয়েছে
+                  </button>
                 </div>
               </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
     </div>
   );
 }
+

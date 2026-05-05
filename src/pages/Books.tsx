@@ -64,7 +64,7 @@ export default function Books() {
           >
             <div className="aspect-[3/4] rounded-2xl overflow-hidden mb-4 bg-slate-100">
               <img 
-                src={book.cover} 
+                src={book.cover || 'https://images.unsplash.com/photo-1544640808-32ca72ac7f67?w=800&q=80'} 
                 alt={book.title} 
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
@@ -104,7 +104,7 @@ export default function Books() {
               
               <div className="flex flex-col md:flex-row p-8 gap-8">
                 <div className="w-48 aspect-[3/4] rounded-2xl overflow-hidden flex-shrink-0 shadow-lg mx-auto md:mx-0">
-                  <img src={selectedBook.cover} alt={selectedBook.title} className="w-full h-full object-cover" />
+                  <img src={selectedBook.cover || 'https://images.unsplash.com/photo-1544640808-32ca72ac7f67?w=800&q=80'} alt={selectedBook.title} className="w-full h-full object-cover" />
                 </div>
                 <div className="space-y-4 flex-1">
                   <div>

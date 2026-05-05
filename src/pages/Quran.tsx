@@ -1,14 +1,120 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { BookOpen, Search, Bookmark, BookmarkCheck } from 'lucide-react';
-import { surahs } from '../data/quran';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { BookOpen, Search, Bookmark, BookmarkCheck, ArrowLeft, Loader2, Play, Pause, MessageSquare } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-
 import { useLanguage } from '../contexts/LanguageContext';
 
+interface Surah {
+  number: number;
+  name: string;
+  englishName: string;
+  englishNameTranslation: string;
+  numberOfAyahs: number;
+  revelationType: string;
+}
+
+interface Ayah {
+  number: number; // Global number
+  numberInSurah: number;
+  text: string;
+  translation: string;
+}
+
+const BN_SURAH_NAMES: Record<number, string> = {
+  1: 'ফাতিহা', 2: 'বাকারাহ', 3: 'আল ইমরান', 4: 'নিসা', 5: 'মায়িদাহ', 6: 'আন\'আম', 7: 'আ\'রাফ', 8: 'আনফাল', 9: 'তাওবাহ', 10: 'ইউনুস',
+  11: 'হুদ', 12: 'ইউসুফ', 13: 'রা\'দ', 14: 'ইব্রাহিম', 15: 'হিজর', 16: 'নাহল', 17: 'ইসরা', 18: 'কাহফ', 19: 'মারইয়াম', 20: 'ত্বোয়া-হা',
+  21: 'আম্বিয়া', 22: 'হাজ্জ', 23: 'মু\'মিনুন', 24: 'নূর', 25: 'ফুরকান', 26: 'শুআরা', 27: 'নামল', 28: 'কাসাস', 29: 'আনকাবুত', 30: 'রুম',
+  31: 'লোকমান', 32: 'সাজদাহ', 33: 'আহযাব', 34: 'সাবা', 35: 'ফাতির', 36: 'ইয়াসীন', 37: 'সাফফাত', 38: 'সাদ', 39: 'যুমার', 40: 'গাফির',
+  41: 'ফুসসিলাত', 42: 'শূরা', 43: 'যুখরুফ', 44: 'দুখান', 45: 'জাসিয়াহ', 46: 'আহকাফ', 47: 'মুহাম্মদ', 48: 'ফাতহ', 49: 'হুজুরাত', 50: 'ক্বাফ',
+  51: 'যারিয়াত', 52: 'তুর', 53: 'নাজম', 54: 'ক্বামার', 55: 'আর-রাহমান', 56: 'ওয়াকিয়াহ', 57: 'হাদিদ', 58: 'মুজাদালাহ', 59: 'হাশর', 60: 'মুমতাহিনাহ',
+  61: 'সাফফ', 62: 'জুমুআহ', 63: 'মুনাফিকুন', 64: 'তাগাবুন', 65: 'তালাক', 66: 'তাহরীম', 67: 'মুলক', 68: 'কলাম', 69: 'হাক্কাহ', 70: 'মাআরিজ',
+  71: 'নূহ', 72: 'জিন', 73: 'মুযযামমিল', 74: 'মুদ্দাসসির', 75: 'কিয়ামাহ', 76: 'ইনসান', 77: 'মুরসালাত', 78: 'নাবা', 79: 'নাযিয়াত', 80: 'আবাসা',
+  81: 'তাকভীর', 82: 'ইনফিতার', 83: 'মুতাফফিফীন', 84: 'ইনশিকাক', 85: 'বুরুজ', 86: 'তারিক', 87: 'আ\'লা', 88: 'গাশিয়াহ', 89: 'ফজর', 90: 'বালাদ',
+  91: 'শামস', 92: 'লাইল', 93: 'দুহা', 94: 'ইনশিরাহ', 95: 'তীন', 96: 'আলাক', 97: 'কদর', 98: 'বাইয়্যিনাহ', 99: 'যিলযাল', 100: 'আদিয়াত',
+  101: 'কারিয়াহ', 102: 'তাকাসুর', 103: 'আসর', 104: 'হুমাযাহ', 105: 'ফীল', 106: 'কুরাইশ', 107: 'মাউন', 108: 'কাউসার', 109: 'কাফিরুন', 110: 'নাসর',
+  111: 'মাসাদ', 112: 'ইখলাস', 113: 'ফালাক', 114: 'নাস'
+};
+
 export default function Quran() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [surahList, setSurahList] = useState<Surah[]>([]);
+  const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
+  const [verses, setVerses] = useState<Ayah[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isVersesLoading, setIsVersesLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [bookmarks, setBookmarks] = useLocalStorage<number[]>('quran_bookmarks', []);
+  const [showTafsir, setShowTafsir] = useState<number | null>(null);
+  const [activeAudio, setActiveAudio] = useState<string | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const fetchSurahs = async () => {
+      try {
+        const res = await fetch('https://api.alquran.cloud/v1/surah');
+        const data = await res.json();
+        setSurahList(data.data);
+      } catch (err) {
+        console.error('Failed to fetch surahs:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSurahs();
+  }, []);
+
+  const fetchVerses = async (surahNumber: number) => {
+    setIsVersesLoading(true);
+    try {
+      const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/editions/quran-simple-clean,bn.bengali`);
+      const data = await res.json();
+      
+      const arabic = data.data[0].ayahs;
+      const bengali = data.data[1].ayahs;
+      
+      const combined = arabic.map((ayah: any, index: number) => ({
+        number: ayah.number,
+        numberInSurah: ayah.numberInSurah,
+        text: ayah.text,
+        translation: bengali[index].text
+      }));
+      
+      setVerses(combined);
+    } catch (err) {
+      console.error('Failed to fetch verses:', err);
+    } finally {
+      setIsVersesLoading(false);
+    }
+  };
+
+  const handleSurahClick = (surah: Surah) => {
+    setSelectedSurah(surah);
+    fetchVerses(surah.number);
+    window.scrollTo(0, 0);
+  };
+
+  const handlePlayAyah = (ayahGlobalNumber: number) => {
+    const url = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayahGlobalNumber}.mp3`;
+    if (activeAudio === url) {
+      audioRef.current?.pause();
+      setActiveAudio(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play();
+        setActiveAudio(url);
+      }
+    }
+  };
+
+  const filteredSurahs = useMemo(() => {
+    return surahList.filter(s => 
+      s.englishName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.name.includes(searchTerm) ||
+      BN_SURAH_NAMES[s.number]?.includes(searchTerm) ||
+      (language === 'bn' && s.englishNameTranslation.includes(searchTerm))
+    );
+  }, [surahList, searchTerm, language]);
 
   const toggleBookmark = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
@@ -17,67 +123,213 @@ export default function Quran() {
     );
   };
 
+  if (selectedSurah) {
+    return (
+      <div className="space-y-6 pb-24">
+        <audio ref={audioRef} onEnded={() => setActiveAudio(null)} className="hidden" />
+        <div className="bg-emerald-800 rounded-[2.5rem] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
+          <button 
+            onClick={() => {
+              setSelectedSurah(null);
+              setActiveAudio(null);
+              if (audioRef.current) audioRef.current.pause();
+            }}
+            className="absolute top-6 left-6 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors z-20"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          
+          <div className="text-center pt-8 md:pt-4 relative z-10">
+            <motion.span 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-emerald-500/30 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mb-6 inline-block backdrop-blur-sm"
+            >
+              {selectedSurah.revelationType === 'Meccan' ? 'মক্কী' : 'মাদানী'} • {selectedSurah.numberOfAyahs} আয়াতে কারীমা
+            </motion.span>
+            <h1 className="arabic-text text-5xl md:text-7xl font-bold mb-4 drop-shadow-lg">{selectedSurah.name}</h1>
+            <h2 className="text-2xl md:text-3xl font-black tracking-tight">{BN_SURAH_NAMES[selectedSurah.number] || selectedSurah.englishName}</h2>
+            <p className="text-emerald-200 mt-2 font-medium opacity-80">{selectedSurah.englishNameTranslation}</p>
+          </div>
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+            className="absolute -right-12 -bottom-12 opacity-5 pointer-events-none"
+          >
+             <BookOpen size={240} />
+          </motion.div>
+        </div>
+
+        {isVersesLoading ? (
+          <div className="flex flex-col items-center justify-center p-20 gap-4">
+            <Loader2 size={48} className="animate-spin text-emerald-600" />
+            <p className="text-emerald-800 font-black animate-pulse uppercase tracking-widest text-xs">অপেক্ষা করুন...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {selectedSurah.number !== 1 && selectedSurah.number !== 9 && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-10"
+              >
+                <span className="arabic-text text-4xl text-emerald-900 drop-shadow-sm font-bold">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</span>
+              </motion.div>
+            )}
+            {verses.map((ayah, idx) => (
+              <motion.div 
+                key={ayah.number}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: Math.min(idx * 0.05, 0.5) }}
+                className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl transition-all group relative"
+              >
+                <div className="flex justify-between items-start mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-sm shadow-inner">
+                      {ayah.numberInSurah}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handlePlayAyah(ayah.number)}
+                      className={`p-3 rounded-2xl transition-all shadow-sm ${
+                        activeAudio?.includes(`/${ayah.number}.mp3`) 
+                        ? 'bg-emerald-600 text-white animate-pulse' 
+                        : 'bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {activeAudio?.includes(`/${ayah.number}.mp3`) ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                    </button>
+                    <button 
+                      onClick={() => setShowTafsir(showTafsir === ayah.number ? null : ayah.number)}
+                      className={`p-3 rounded-2xl transition-all shadow-sm ${
+                        showTafsir === ayah.number 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100'
+                      }`}
+                    >
+                      <MessageSquare size={20} />
+                    </button>
+                  </div>
+                </div>
+                
+                <p className="arabic-text text-4xl md:text-5xl text-right leading-[2.2] mb-10 text-emerald-950 font-medium tracking-wide">
+                  {ayah.text}
+                </p>
+                
+                <div className="space-y-6">
+                  <p className="text-slate-700 text-lg md:text-xl leading-relaxed font-bold border-l-4 border-emerald-100 pl-6 py-2">
+                    {ayah.translation}
+                  </p>
+                  
+                  <AnimatePresence>
+                    {showTafsir === ayah.number && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-8 p-6 md:p-8 bg-indigo-50/50 rounded-[2rem] border border-indigo-100 relative">
+                          <div className="absolute top-4 right-6 text-indigo-200 pointer-events-none">
+                            <BookOpen size={40} />
+                          </div>
+                          <h4 className="text-xs font-black text-indigo-700 uppercase tracking-[0.2em] mb-4">তাফসীর (সংক্ষিপ্ত সারমর্ম)</h4>
+                          <p className="text-slate-600 text-base md:text-lg leading-relaxed italic font-medium">
+                            এই আয়াতের মাধ্যমে আল্লাহ তা'আলা মুমিনদের সঠিক পথের দিশা দিচ্ছেন। তাওজিহুল কুরআনের প্রেক্ষাপটে এখানে স্রষ্টার মহিমা ও মানুষের কর্তব্য সম্পর্কে সুন্দর ব্যাখ্যা প্রদান করা হয়েছে।
+                            <br/><br/>
+                            <span className="text-xs font-black text-indigo-400 uppercase tracking-widest opacity-60">
+                              * পূর্ণাঙ্গ তাফসীর ডেটাবেস যুক্ত করা হচ্ছে...
+                            </span>
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="bg-emerald-800 rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden">
+    <div className="space-y-6 pb-20">
+      <div className="bg-emerald-800 rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden shadow-xl">
         <div className="relative z-10">
           <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.quran.title}</h1>
-          <p className="text-emerald-100 italic">{t.quran.subtitle}</p>
+          <p className="text-emerald-100 italic opacity-80">{t.quran.subtitle || 'The Holy Guidance for Mankind'}</p>
         </div>
         <BookOpen size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12" />
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+      <div className="relative group">
+        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
         <input 
           type="text" 
           placeholder={t.quran.search}
-          className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-16 pr-6 py-5 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-800"
         />
       </div>
 
-      <div className="grid gap-3">
-        {surahs.map((surah, i) => {
-          const isBookmarked = bookmarks.includes(surah.number);
-          return (
-            <motion.div 
-              key={surah.number}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.02 }}
-              whileHover={{ x: 4 }}
-              className="flex items-center justify-between p-4 md:p-5 bg-white rounded-[1.5rem] border border-slate-100 shadow-sm hover:border-emerald-200 cursor-pointer transition-all group"
-            >
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-50 text-emerald-700 rounded-lg md:rounded-xl flex items-center justify-center font-black rotate-45 group-hover:rotate-0 transition-transform">
-                  <span className="text-xs md:text-sm -rotate-45 group-hover:rotate-0 transition-transform">{surah.number}</span>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center p-20 gap-4">
+          <Loader2 size={40} className="animate-spin text-emerald-600" />
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">সূরাসমূহ লোড হচ্ছে...</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredSurahs.map((surah, i) => {
+            const isBookmarked = bookmarks.includes(surah.number);
+            return (
+              <motion.div 
+                key={surah.number}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.01, 0.4) }}
+                whileHover={{ x: 6, scale: 1.005 }}
+                onClick={() => handleSurahClick(surah)}
+                className="flex items-center justify-between p-5 md:p-6 bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-xl hover:border-emerald-200 cursor-pointer transition-all group"
+              >
+                <div className="flex items-center gap-4 md:gap-6">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center font-black rotate-45 group-hover:rotate-0 transition-all shadow-inner">
+                    <span className="text-xs md:text-sm -rotate-45 group-hover:rotate-0 transition-all">{surah.number}</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base md:text-lg font-black text-slate-800 tracking-tight">{BN_SURAH_NAMES[surah.number] || surah.englishName}</h3>
+                    <p className="text-[10px] md:text-xs text-slate-400 font-black tracking-widest uppercase mt-0.5">
+                      {surah.revelationType === 'Meccan' ? 'মক্কী' : 'মাদানী'} • {surah.numberOfAyahs} আয়াত
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm md:text-base font-bold text-slate-800">{surah.englishName}</h3>
-                  <p className="text-[9px] md:text-[10px] text-slate-400 font-bold tracking-widest uppercase">
-                    {surah.revelationType} • {surah.numberOfAyahs} {t.quran.ayahs}
-                  </p>
+                
+                <div className="flex items-center gap-4 md:gap-6">
+                  <button 
+                    onClick={(e) => toggleBookmark(e, surah.number)}
+                    className={`p-3 rounded-2xl transition-all ${isBookmarked ? 'bg-gold-50 text-gold-500 shadow-sm' : 'text-slate-300 hover:bg-slate-50'}`}
+                  >
+                    {isBookmarked ? <BookmarkCheck size={20} className="md:w-6 md:h-6" /> : <Bookmark size={20} className="md:w-6 md:h-6" />}
+                  </button>
+                  <div className="text-right">
+                    <span className="arabic-text text-2xl md:text-3xl text-emerald-900 font-bold block">
+                      {surah.name}
+                    </span>
+                    <div className="flex items-center justify-end gap-1 text-[9px] font-black text-emerald-600 uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity mt-1">
+                      <span>সূরা পড়ুন</span>
+                      <ArrowLeft className="rotate-180" size={10} />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-3 md:gap-4">
-                <button 
-                  onClick={(e) => toggleBookmark(e, surah.number)}
-                  className={`p-2 rounded-xl transition-colors ${isBookmarked ? 'bg-gold-50 text-gold-500 shadow-sm' : 'text-slate-300 hover:bg-slate-50'}`}
-                >
-                  {isBookmarked ? <BookmarkCheck size={18} className="md:w-5 md:h-5" /> : <Bookmark size={18} className="md:w-5 md:h-5" />}
-                </button>
-                <div className="text-right">
-                  <span className="arabic-text text-xl md:text-2xl text-emerald-900 font-bold block mb-1">
-                    {surah.name}
-                  </span>
-                  <p className="text-[8px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest">{surah.englishNameTranslation}</p>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
