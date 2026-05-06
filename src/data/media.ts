@@ -123,31 +123,54 @@ export const audioItems: AudioItem[] = [
 export interface VideoItem {
   id: number;
   title: string;
+  title_bn: string;
   speaker: string;
-  youtubeId: string;
-  category: 'Lecture' | 'Quran' | 'Kids';
+  speaker_bn: string;
+  youtubeId?: string;
+  videoUrl?: string;
+  type: 'youtube' | 'direct' | 'external';
+  category: 'Lecture' | 'Quran' | 'Kids' | 'Nasheed';
 }
 
 export const videoItems: VideoItem[] = [
   {
     id: 1,
     title: "The Purpose of Life",
+    title_bn: "জীবনের উদ্দেশ্য",
     speaker: "Mufti Menk",
+    speaker_bn: "মুফতি মেঙ্ক",
     youtubeId: "vSRNNoRE27M",
+    type: 'youtube',
     category: "Lecture"
   },
   {
     id: 2,
     title: "Beautiful Quran Recitation",
+    title_bn: "চমৎকার কুরআন তিলাওয়াত",
     speaker: "Omar Hisham",
+    speaker_bn: "ওমর হিশাম",
     youtubeId: "Wp_K8PrH7g8",
+    type: 'youtube',
     category: "Quran"
   },
   {
     id: 3,
     title: "Islamic Stories for Children",
+    title_bn: "শিশুদের জন্য ইসলামিক গল্প",
     speaker: "Prophet Stories",
+    speaker_bn: "নবীদের কাহিনী",
     youtubeId: "JmD8A-m_4tA",
+    type: 'youtube',
     category: "Kids"
+  },
+  {
+    id: 4,
+    title: "Hasbi Rabbi Jallallah",
+    title_bn: "হাসবি রাব্বি জাল্লাল্লাহ",
+    speaker: "Sami Yusuf",
+    speaker_bn: "সামি ইউসুফ",
+    youtubeId: "vT_C1fK0qAc",
+    type: 'youtube',
+    category: "Nasheed"
   }
 ];
