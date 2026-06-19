@@ -146,6 +146,34 @@ export default function Quran() {
         audioRef.current.src = url;
         audioRef.current.play();
         setActiveAudio(url);
+
+        if ('mediaSession' in navigator) {
+          try {
+            const matchedAyah = verses.find(v => v.number === ayahGlobalNumber);
+            const ayahLabel = matchedAyah ? ` (Ayah ${matchedAyah.numberInSurah})` : '';
+            const reciterName = language === 'bn' ? 'শেখ মিশারি আল-আফাসি' : 'Sheikh Mishary Alafasy';
+            
+            let trackTitle = language === 'bn' ? `তিলওয়াত${ayahLabel}` : `Recitation${ayahLabel}`;
+            if (selectedSurah) {
+              const surahName = BN_SURAH_NAMES[selectedSurah.number] || selectedSurah.englishName;
+              trackTitle = language === 'bn' ? `সূরা ${surahName}${ayahLabel}` : `Surah ${surahName}${ayahLabel}`;
+            } else if (selectedJuz) {
+              trackTitle = language === 'bn' ? `${selectedJuz} নং পারা${ayahLabel}` : `Juz ${selectedJuz}${ayahLabel}`;
+            }
+
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: trackTitle,
+              artist: reciterName,
+              album: 'Deen Zone',
+              artwork: [
+                { src: '/icon.jpg', sizes: '192x192', type: 'image/jpeg' },
+                { src: '/icon.jpg', sizes: '512x512', type: 'image/jpeg' }
+              ]
+            });
+          } catch (e) {
+            console.error('Failed to set media session metadata:', e);
+          }
+        }
       }
     }
   };

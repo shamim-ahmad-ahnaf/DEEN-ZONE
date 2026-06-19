@@ -104,6 +104,24 @@ export default function Audio() {
             .then(() => {
               setPlayingId(item.id);
               setPausedId(null);
+
+              if ('mediaSession' in navigator) {
+                try {
+                  const trackTitle = language === 'bn' ? item.title_bn : item.title;
+                  const trackArtist = language === 'bn' ? item.artist_bn : item.artist;
+                  navigator.mediaSession.metadata = new MediaMetadata({
+                    title: trackTitle,
+                    artist: trackArtist,
+                    album: 'Deen Zone',
+                    artwork: [
+                      { src: '/icon.jpg', sizes: '192x192', type: 'image/jpeg' },
+                      { src: '/icon.jpg', sizes: '512x512', type: 'image/jpeg' }
+                    ]
+                  });
+                } catch (e) {
+                  console.error('Failed to set media session metadata:', e);
+                }
+              }
             })
             .catch((error) => {
               if (error.name !== 'AbortError') {
