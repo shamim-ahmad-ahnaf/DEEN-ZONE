@@ -14,6 +14,7 @@ export const en = {
     home: "Home",
     prayer: "Prayer",
     quran: "Quran",
+    tilawat: "Tilawat",
     hadith: "Hadith",
     tasbih: "Tasbih",
     dua: "Dua",

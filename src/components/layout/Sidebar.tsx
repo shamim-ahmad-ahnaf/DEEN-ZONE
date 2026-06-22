@@ -11,6 +11,7 @@ export const getNavItems = (t: any) => [
   { path: '/', label: t.nav.home, icon: Home },
   { path: '/prayer', label: t.nav.prayer, icon: Clock },
   { path: '/quran', label: t.nav.quran, icon: BookOpen },
+  { path: '/tilawat', label: t.nav.tilawat, icon: BookOpen },
   { path: '/hadith', label: t.nav.hadith, icon: MessageSquare },
   { path: '/tasbih', label: t.nav.tasbih, icon: Fingerprint },
   { path: '/dua', label: t.nav.dua, icon: Heart },
@@ -47,7 +48,9 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       <div className="p-6 flex-1 flex flex-col h-full">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-900 border border-emerald-800 rounded-xl flex items-center justify-center text-gold-400 font-black italic shadow-lg">D</div>
+            <div className="w-10 h-10 bg-emerald-950 border border-emerald-800 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-emerald-950/50">
+              <img src="/icon.jpg" alt="Deen Zone Logo" className="w-full h-full object-cover" />
+            </div>
             <h2 className="text-xl font-black text-white tracking-tighter uppercase font-display">Deen Zone</h2>
           </div>
           <button 

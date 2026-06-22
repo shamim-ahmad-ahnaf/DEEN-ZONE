@@ -6,6 +6,7 @@ import { AppLayout } from './components/layout/AppLayout';
 const Home = lazy(() => import('./pages/Home'));
 const Prayer = lazy(() => import('./pages/Prayer'));
 const Quran = lazy(() => import('./pages/Quran'));
+const Tilawat = lazy(() => import('./pages/Tilawat'));
 const Hadith = lazy(() => import('./pages/Hadith'));
 const Tasbih = lazy(() => import('./pages/Tasbih'));
 const Dua = lazy(() => import('./pages/Dua'));
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/prayer" element={<Prayer />} />
           <Route path="/quran" element={<Quran />} />
+          <Route path="/tilawat" element={<Tilawat />} />
           <Route path="/hadith" element={<Hadith />} />
           <Route path="/tasbih" element={<Tasbih />} />
           <Route path="/dua" element={<Dua />} />

@@ -14,6 +14,7 @@ export const bn = {
     home: "হোম",
     prayer: "নামাজ",
     quran: "আল কুরআন",
+    tilawat: "তিলাওয়াত",
     hadith: "হাদিস",
     tasbih: "তাসবিহ",
     dua: "দুয়া",

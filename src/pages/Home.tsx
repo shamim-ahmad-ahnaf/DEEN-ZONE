@@ -141,8 +141,8 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center gap-4 mb-10"
           >
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/20 shadow-lg">
-              <Moon size={24} className="text-gold-400" />
+            <div className="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/20 shadow-lg overflow-hidden">
+              <img src="/icon.jpg" alt="Deen Zone Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <p className="text-emerald-300 text-xs font-black uppercase tracking-[0.3em] mb-1 opacity-70">{t.home.welcome}</p>

@@ -22,8 +22,8 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
       {/* Mobile Header */}
       <header className="md:hidden glass backdrop-blur-xl p-4 flex items-center justify-between sticky top-0 z-50 shadow-sm border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20">
-            <span className="font-black italic text-gold-400">D</span>
+          <div className="w-10 h-10 bg-emerald-950 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-emerald-950/20">
+            <img src="/icon.jpg" alt="Deen Zone Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-black tracking-tighter uppercase font-display text-slate-800">Deen Zone</h1>
         </div>
