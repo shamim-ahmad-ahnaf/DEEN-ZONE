@@ -243,11 +243,24 @@ export default function Quran() {
         </div>
 
         {isVersesLoading ? (
-          <div className="flex flex-col items-center justify-center p-20 gap-4">
-            <Loader2 size={48} className="animate-spin text-emerald-600" />
-            <p className="text-emerald-800 font-black animate-pulse uppercase tracking-widest text-xs">
-              {language === 'bn' ? 'অপেক্ষা করুন...' : 'Please wait...'}
-            </p>
+          <div className="space-y-6 animate-pulse select-none">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-6 md:p-8 bg-white rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
+                <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                  <div className="w-10 h-10 bg-slate-200 rounded-2xl rotate-45" />
+                  <div className="h-5 w-24 bg-slate-200 rounded-md" />
+                </div>
+                {/* Arabic text line skeleton right-aligned */}
+                <div className="flex justify-end pt-2">
+                  <div className="h-9 w-3/4 md:w-1/2 bg-slate-200 rounded-xl" />
+                </div>
+                {/* Bengali translation line details */}
+                <div className="space-y-2 pt-2">
+                  <div className="h-4 w-11/12 bg-slate-100 rounded-md" />
+                  <div className="h-4 w-8/12 bg-slate-50 rounded-md" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="space-y-6">
@@ -384,11 +397,22 @@ export default function Quran() {
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center p-20 gap-4">
-          <Loader2 size={40} className="animate-spin text-emerald-600" />
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">
-            {language === 'bn' ? 'সূরাসমূহ লোড হচ্ছে...' : 'Loading Surahs...'}
-          </p>
+        <div className="grid md:grid-cols-2 gap-4 animate-pulse select-none">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between p-5 md:p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm gap-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="w-10 h-10 bg-slate-200 rounded-2xl rotate-45" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-5 w-28 bg-slate-200 rounded-md" />
+                  <div className="h-3.5 w-36 bg-slate-100 rounded-md" />
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="h-5 w-16 bg-slate-200 rounded-md" />
+                <div className="h-3.5 w-10 bg-slate-100 rounded-md" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid gap-4">

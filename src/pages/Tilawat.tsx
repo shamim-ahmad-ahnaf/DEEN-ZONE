@@ -39,22 +39,22 @@ interface CDNConfig {
 
 const REAL_PAGE_CDNS: CDNConfig[] = [
   { 
-    id: 'emdadia_hafezi', 
-    name: 'Emdadia Hafezi Quran', 
-    nameBN: 'এমদাদিয়া হাফেজী কুরআন (হুবহু)',
-    url: (p, n) => `https://archive.org/download/EmdadiaHafeziQuran/page/n${n}.jpg` 
-  },
-  { 
     id: 'hasan_sayyed', 
     name: 'Hafizi 15-Line Classic', 
     nameBN: 'হাফেজী ১৫-লাইন মদনী',
-    url: (p, n) => `https://raw.githubusercontent.com/hasan-sayyed/Quran-images/master/images/page${p}.png` 
+    url: (p, n) => `https://cdn.jsdelivr.net/gh/hasan-sayyed/Quran-images@master/images/page${n}.png` 
   },
   { 
     id: 'sajid_s', 
     name: 'Medina Standard Scan', 
     nameBN: 'মদিনা স্ট্যান্ডার্ড স্ক্যান',
-    url: (p, n) => `https://raw.githubusercontent.com/Sajid-S/quran-images/master/images/page${p}.png` 
+    url: (p, n) => `https://cdn.jsdelivr.net/gh/Sajid-S/quran-images@master/images/page${n}.png` 
+  },
+  { 
+    id: 'emdadia_hafezi', 
+    name: 'Emdadia Hafezi Quran', 
+    nameBN: 'এমদাদিয়া হাফেজী কুরআন (হুবহু)',
+    url: (p, n) => `https://archive.org/download/EmdadiaHafeziQuran/page/n${n}.jpg` 
   }
 ];
 
@@ -158,27 +158,34 @@ export default function Tilawat() {
   const [searchTerm, setSearchTerm] = useState('');
   
   // Custom Controls (Trimmed down unused parameters to optimize rendering)
-  const [selectedCDN, setSelectedCDN] = useState<string>('emdadia_hafezi');
+  const [selectedCDN, setSelectedCDN] = useState<string>('hasan_sayyed');
   const [fallbackIndex, setFallbackIndex] = useState<number>(0);
   const [isImgRenderLoading, setIsImgRenderLoading] = useState<boolean>(true);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
+  const [showFullScreenControls, setShowFullScreenControls] = useState<boolean>(true);
   const [pageTurnDirection, setPageTurnDirection] = useState<'next' | 'prev' | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const juzList = Array.from({ length: 30 }, (_, i) => i + 1);
 
   // Swipe Gestures for Mobile
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+  const isMoved = useRef<boolean>(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
     touchEndX.current = e.targetTouches[0].clientX;
+    isMoved.current = false;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     touchEndX.current = e.targetTouches[0].clientX;
+    if (touchStartX.current !== null && Math.abs(touchStartX.current - e.targetTouches[0].clientX) > 10) {
+      isMoved.current = true;
+    }
   };
 
   const handleTouchEnd = () => {
@@ -202,10 +209,14 @@ export default function Tilawat() {
     if (e.button !== 0) return; // Only left click
     mouseStartX.current = e.clientX;
     isDragging.current = true;
+    isMoved.current = false;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging.current || mouseStartX.current === null) return;
+    if (Math.abs(mouseStartX.current - e.clientX) > 10) {
+      isMoved.current = true;
+    }
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
@@ -230,13 +241,22 @@ export default function Tilawat() {
   useEffect(() => {
     if (isFullScreen && currentPage !== null) {
       document.body.style.overflow = 'hidden';
+      // Hide controls by default when entering fullscreen so nothing is visible initially
+      setShowFullScreenControls(false); 
     } else {
       document.body.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isFullScreen, currentPage]);
+  }, [isFullScreen]);
+
+  // Check if image is loaded from browser cache or loaded instantly
+  useEffect(() => {
+    if (imgRef.current && imgRef.current.complete) {
+      setIsImgRenderLoading(false);
+    }
+  }, [currentPage, selectedCDN, fallbackIndex, isFullScreen]);
 
   // Load Saved Bookmark
   useEffect(() => {
@@ -360,8 +380,13 @@ export default function Tilawat() {
     if (isFullScreen) {
       return createPortal(
         <div className="fixed inset-0 z-[100] bg-[#0d0904] text-amber-100 flex flex-col justify-between overflow-hidden select-none">
-          {/* Top Panel */}
-          <div className="bg-[#1c140a] border-b border-amber-950/40 p-4 px-6 flex items-center justify-between z-50 shadow-md">
+          {/* Top Panel - absolute overlays with smooth translations */}
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`absolute top-0 left-0 right-0 h-[64px] bg-[#1c140a] border-b border-amber-950/40 p-4 px-6 flex items-center justify-between z-50 shadow-md transition-all duration-300 transform ${
+              showFullScreenControls ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
+            }`}
+          >
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setIsFullScreen(false)}
@@ -398,12 +423,26 @@ export default function Tilawat() {
             </div>
           </div>
 
-          {/* Central Active Stage */}
-          <div className="flex-1 relative flex items-center justify-center p-2 md:p-6 bg-[#040301]">
+          {/* Central Active Stage - click stage to toggle controls */}
+          <div 
+            onClick={() => {
+              if (!isMoved.current) {
+                setShowFullScreenControls(prev => !prev);
+              }
+            }}
+            className={`w-full h-full flex items-center justify-center bg-[#040301] transition-all duration-300 ${
+              showFullScreenControls ? 'pt-[68px] pb-[76px]' : 'p-2 md:p-6'
+            }`}
+          >
             {/* LEFT RTL Hotzone overlay - Turns to next numerical page */}
             <div 
-              onClick={handleNextPage}
-              className="absolute left-0 top-0 bottom-0 w-[20%] md:w-[25%] cursor-w-resize z-20 flex items-center justify-start pl-4 group opacity-0 hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNextPage();
+              }}
+              className={`absolute left-0 w-[20%] md:w-[25%] cursor-w-resize z-40 flex items-center justify-start pl-4 group opacity-0 hover:opacity-100 transition-all duration-300 ${
+                showFullScreenControls ? 'top-[68px] bottom-[76px]' : 'top-0 bottom-0'
+              }`}
               title={language === 'bn' ? 'পরবর্তী পৃষ্ঠা (বামে ট্যাপ করুন)' : 'Next Page (Tap Left)'}
             >
               <div className="bg-amber-950/60 text-amber-400/80 p-3.5 rounded-full border border-amber-800/10 group-hover:scale-105 transition-transform shadow-lg">
@@ -413,8 +452,13 @@ export default function Tilawat() {
 
             {/* RIGHT RTL Hotzone overlay - Turns to previous numerical page */}
             <div 
-              onClick={handlePrevPage}
-              className="absolute right-0 top-0 bottom-0 w-[20%] md:w-[25%] cursor-e-resize z-20 flex items-center justify-end pr-4 group opacity-0 hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrevPage();
+              }}
+              className={`absolute right-0 w-[20%] md:w-[25%] cursor-e-resize z-40 flex items-center justify-end pr-4 group opacity-0 hover:opacity-100 transition-all duration-300 ${
+                showFullScreenControls ? 'top-[68px] bottom-[76px]' : 'top-0 bottom-0'
+              }`}
               title={language === 'bn' ? 'পূর্ববর্তী পৃষ্ঠা (ডানে ট্যাপ করুন)' : 'Prev Page (Tap Right)'}
             >
               <div className="bg-amber-950/60 text-amber-400/80 p-3.5 rounded-full border border-amber-800/10 group-hover:scale-105 transition-transform shadow-lg">
@@ -451,15 +495,48 @@ export default function Tilawat() {
                   className="w-full h-full flex items-center justify-center p-3 rounded-[2.5rem] bg-[#FCFAF2] border-[4px] border-[#221606] shadow-2xl relative overflow-hidden"
                 >
                   {isImgRenderLoading && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#FCFAF2]/95 z-20 gap-3">
-                      <Loader2 size={36} className="animate-spin text-amber-800" />
-                      <span className="text-amber-950/60 text-xs font-black tracking-widest uppercase">
-                        {language === 'bn' ? 'হাফেজী পৃষ্ঠা সাজানো হচ্ছে...' : 'Formatting page...'}
-                      </span>
+                    <div className="absolute inset-0 bg-[#FCFAF2] z-20 p-6 md:p-10 flex flex-col justify-between animate-pulse select-none">
+                      {/* Quran Page Top Border Accent */}
+                      <div className="flex justify-between items-center border-b-[2px] border-amber-950/20 pb-3 mb-4">
+                        <div className="h-4 w-20 bg-amber-950/10 rounded-md" />
+                        <div className="h-5 w-24 bg-amber-950/15 rounded-md" />
+                        <div className="h-4 w-16 bg-amber-950/10 rounded-md" />
+                      </div>
+
+                      {/* 15 lines of scriptures mimicking Madani/Hafezi layout */}
+                      <div className="flex-1 flex flex-col justify-between py-2 space-y-2 md:space-y-3">
+                        {Array.from({ length: 15 }).map((_, i) => {
+                          const isHeaderLine = i === 0 || i === 14;
+                          const widthClass = isHeaderLine 
+                            ? 'w-1/2 mx-auto h-5 bg-amber-800/10 rounded-md' 
+                            : i % 3 === 0 
+                              ? 'w-[92%] mx-auto h-4 bg-amber-700/[0.06] rounded-sm'
+                              : 'w-[96%] mx-auto h-4 bg-amber-700/[0.08] rounded-sm';
+                          return (
+                            <div key={i} className="flex justify-center items-center w-full">
+                              <div className={`${widthClass} relative overflow-hidden flex items-center justify-between px-4`}>
+                                {!isHeaderLine && i % 4 === 0 && (
+                                  <div className="w-5 h-5 rounded-full border border-amber-700/10 bg-[#FCFAF2] flex items-center justify-center absolute right-[10%] -top-0.5">
+                                    <div className="w-2 h-2 rounded-full bg-amber-700/20" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Bottom Page Footer Border Accent */}
+                      <div className="flex justify-between items-center border-t-[2px] border-amber-950/20 pt-3 mt-4 text-[10px] text-amber-950/30">
+                        <div className="h-3.5 w-24 bg-amber-950/10 rounded-sm" />
+                        <div className="w-7 h-7 bg-amber-950/15 rounded-full" />
+                        <div className="h-3.5 w-16 bg-amber-950/10 rounded-sm" />
+                      </div>
                     </div>
                   )}
 
                   <img
+                    ref={imgRef}
                     src={getPageImageUrl(currentPage)}
                     alt={`Emdadia Hafezi Page ${currentPage}`}
                     className={`max-w-full max-h-full object-contain pointer-events-none select-none transition-all duration-300 ${isImgRenderLoading ? 'opacity-0' : 'opacity-100'}`}
@@ -479,7 +556,12 @@ export default function Tilawat() {
           </div>
 
           {/* Simple Bottom HUD controls */}
-          <div className="bg-[#1c140a] border-t border-amber-950/40 p-4 px-6 flex items-center justify-between z-40 text-amber-400 font-bold text-xs select-none">
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`absolute bottom-0 left-0 right-0 bg-[#1c140a] border-t border-amber-950/40 p-4 px-6 flex items-center justify-between z-50 text-amber-400 font-bold text-xs select-none transition-all duration-300 transform ${
+              showFullScreenControls ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'
+            }`}
+          >
             <button 
               onClick={handleNextPage}
               disabled={currentPage >= 611}
@@ -489,7 +571,7 @@ export default function Tilawat() {
               <span>{language === 'bn' ? 'পরবর্তী পৃষ্ঠা (বামে)' : 'Next (Left)'}</span>
             </button>
 
-            <span className="text-[10px] text-amber-500/50 uppercase tracking-widest hidden md:inline">
+            <span className="text-[10px] text-amber-500/50 uppercase tracking-widest hidden md:inline select-none">
               {language === 'bn' ? 'পৃষ্ঠা ফ্লিপ করতে কী-বোর্ডের Arrow বা মাউস ড্র্যাগ ব্যবহার করুন' : 'Use Arrow Keys or Mouse Drag to turn pages'}
             </span>
 
@@ -632,14 +714,47 @@ export default function Tilawat() {
                 {/* Holy Quran Scan display */}
                 <div className="w-full flex justify-center items-center overflow-auto py-2 z-10 relative bg-[#fdfdfb] rounded-2xl shadow-inner border border-stone-200 min-h-[40vh]">
                   {isImgRenderLoading && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#fdfdfb]/90 z-20 gap-3">
-                      <Loader2 size={36} className="animate-spin text-amber-600" />
-                      <span className="text-stone-500 text-xs font-bold tracking-wider">
-                        {language === 'bn' ? 'এমদাদিয়া হাফেজী পৃষ্ঠা লোড হচ্ছে...' : 'Loading Emdadia Hafezi Quran scan...'}
-                      </span>
+                    <div className="absolute inset-0 bg-[#fdfdfb] z-20 p-6 md:p-8 flex flex-col justify-between animate-pulse select-none">
+                      {/* Quran Page Top Border Accent */}
+                      <div className="flex justify-between items-center border-b-[2px] border-stone-200 pb-2 mb-3">
+                        <div className="h-3 w-16 bg-stone-200 rounded-md" />
+                        <div className="h-4 w-20 bg-stone-300 rounded-md" />
+                        <div className="h-3 w-12 bg-stone-200 rounded-md" />
+                      </div>
+
+                      {/* 15 lines of scriptures mimicking Madani/Hafezi layout */}
+                      <div className="flex-1 flex flex-col justify-between py-2 space-y-1 md:space-y-2">
+                        {Array.from({ length: 15 }).map((_, i) => {
+                          const isHeaderLine = i === 0 || i === 14;
+                          const widthClass = isHeaderLine 
+                            ? 'w-1/2 mx-auto h-4 bg-stone-200 rounded-md' 
+                            : i % 3 === 0 
+                              ? 'w-[90%] mx-auto h-3 bg-stone-100 rounded-sm'
+                              : 'w-[95%] mx-auto h-3 bg-stone-250 rounded-sm';
+                          return (
+                            <div key={i} className="flex justify-center items-center w-full">
+                              <div className={`${widthClass} relative overflow-hidden flex items-center justify-between px-3`}>
+                                {!isHeaderLine && i % 4 === 0 && (
+                                  <div className="w-4 h-4 rounded-full border border-stone-200 bg-[#fdfdfb] flex items-center justify-center absolute right-[12%] -top-0.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Bottom Page Footer Border Accent */}
+                      <div className="flex justify-between items-center border-t-[2px] border-stone-200 pt-2 mt-3">
+                        <div className="h-3 w-20 bg-stone-200 rounded-sm" />
+                        <div className="w-6 h-6 bg-stone-300 rounded-full" />
+                        <div className="h-3 w-14 bg-stone-200 rounded-sm" />
+                      </div>
                     </div>
                   )}
                   <motion.img
+                    ref={imgRef}
                     src={getPageImageUrl(currentPage)}
                     alt={`Holy Quran Page ${currentPage}`}
                     className={`max-h-[75vh] md:max-h-[82vh] object-contain select-none pointer-events-none transition-transform duration-300 ${isImgRenderLoading ? 'opacity-0' : 'opacity-100'}`}
@@ -776,11 +891,22 @@ export default function Tilawat() {
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <Loader2 size={40} className="animate-spin text-emerald-600" />
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">
-            {language === 'bn' ? 'সূরাসমূহ প্রস্তুত হচ্ছে...' : 'Loading Surah Database...'}
-          </p>
+        <div className="grid md:grid-cols-2 gap-4 animate-pulse select-none">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between p-5 bg-white rounded-[2rem] border border-slate-100 shadow-sm gap-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="w-10 h-10 bg-slate-200 rounded-2xl rotate-45" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-5 w-28 bg-slate-200 rounded-md" />
+                  <div className="h-3.5 w-36 bg-slate-100 rounded-md" />
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="h-5 w-16 bg-slate-200 rounded-md" />
+                <div className="h-3 w-10 bg-slate-100 rounded-md" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid gap-4">

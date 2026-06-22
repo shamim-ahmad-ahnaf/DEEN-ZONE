@@ -26,8 +26,41 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading fallback component
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[50vh]">
-    <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+  <div className="w-full max-w-7xl mx-auto p-4 md:p-8 animate-pulse select-none">
+    {/* Page Header Skeleton */}
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      <div>
+        <div className="h-8 w-48 bg-slate-200 rounded-lg mb-2" />
+        <div className="h-4 w-72 bg-slate-100 rounded-md" />
+      </div>
+      <div className="h-10 w-32 bg-slate-200 rounded-xl" />
+    </div>
+
+    {/* Search field placeholder */}
+    <div className="w-full h-14 bg-slate-100 rounded-3xl mb-8" />
+
+    {/* Elegant Content Grid Skeleton mimicking the card items */}
+    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-slate-200 rounded-2xl rotate-45" />
+            <div className="flex-1">
+              <div className="h-5 w-32 bg-slate-200 rounded-md mb-2" />
+              <div className="h-3 w-20 bg-slate-100 rounded-md" />
+            </div>
+          </div>
+          <div className="space-y-2 mt-2">
+            <div className="h-3.5 w-full bg-slate-100 rounded-md" />
+            <div className="h-3.5 w-5/6 bg-slate-100 rounded-md" />
+          </div>
+          <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-50">
+            <div className="h-4 w-16 bg-slate-100 rounded-md" />
+            <div className="h-4 w-24 bg-slate-200 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
   </div>
 );
 
