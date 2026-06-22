@@ -161,6 +161,7 @@ export default function Tilawat() {
   const [selectedCDN, setSelectedCDN] = useState<string>('hasan_sayyed');
   const [fallbackIndex, setFallbackIndex] = useState<number>(0);
   const [isImgRenderLoading, setIsImgRenderLoading] = useState<boolean>(true);
+  const [resolvedImgUrl, setResolvedImgUrl] = useState<string>('');
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [showFullScreenControls, setShowFullScreenControls] = useState<boolean>(true);
@@ -168,6 +169,7 @@ export default function Tilawat() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const activeObjectUrlRef = useRef<string | null>(null);
   const juzList = Array.from({ length: 30 }, (_, i) => i + 1);
 
   // Swipe Gestures for Mobile
@@ -251,6 +253,15 @@ export default function Tilawat() {
     };
   }, [isFullScreen]);
 
+  // Clean up Object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (activeObjectUrlRef.current) {
+        URL.revokeObjectURL(activeObjectUrlRef.current);
+      }
+    };
+  }, []);
+
   // Check if image is loaded from browser cache or loaded instantly
   useEffect(() => {
     if (imgRef.current && imgRef.current.complete) {
@@ -273,11 +284,63 @@ export default function Tilawat() {
     }
   }, [currentPage]);
 
-  // Reset image rendering load state and fallback index on page or server change
+  // Reset fallback index on page change
   useEffect(() => {
     setFallbackIndex(0);
-    setIsImgRenderLoading(true);
   }, [currentPage, selectedCDN]);
+
+  // Resolve image URL (loading from standard persistent Cache Storage or fallback to direct CDN url)
+  useEffect(() => {
+    if (!currentPage) return;
+    const url = getPageImageUrl(currentPage);
+    let isCurrent = true;
+
+    const resolveImg = async () => {
+      try {
+        if ('caches' in window) {
+          const cache = await window.caches.open('quran-pages-cache');
+          const cachedResponse = await cache.match(url);
+          
+          if (cachedResponse && isCurrent) {
+            const blob = await cachedResponse.blob();
+            if (isCurrent) {
+              const objectUrl = URL.createObjectURL(blob);
+              
+              if (activeObjectUrlRef.current) {
+                URL.revokeObjectURL(activeObjectUrlRef.current);
+              }
+              activeObjectUrlRef.current = objectUrl;
+              
+              setResolvedImgUrl(objectUrl);
+              setIsImgRenderLoading(false); // Instant load!
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Cache Storage API error:', err);
+      }
+
+      if (isCurrent) {
+        const img = new Image();
+        img.src = url;
+        if (img.complete && isCurrent) {
+          setResolvedImgUrl(url);
+          setIsImgRenderLoading(false);
+          return;
+        }
+
+        setResolvedImgUrl(url);
+        setIsImgRenderLoading(true);
+      }
+    };
+
+    resolveImg();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [currentPage, selectedCDN, fallbackIndex]);
 
   // Keyboard Navigation for flipping pages
   useEffect(() => {
@@ -293,18 +356,61 @@ export default function Tilawat() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentPage]);
 
-  // Aggressively preload next pages in the background
+  // Aggressively preload next and previous pages into HTML5 Cache Storage in the background
   useEffect(() => {
     if (!currentPage) return;
-    // Preload next 2 pages and previous 1 page
-    const pagesToPreload = [currentPage + 1, currentPage + 2, currentPage - 1];
-    pagesToPreload.forEach(p => {
-      if (p >= 1 && p <= 611) {
-        const img = new Image();
-        img.src = getPageImageUrl(p);
+    
+    // Preload next 3 pages and previous 2 pages to support fluid forward/back reading
+    const pagesToPreload = [
+      currentPage + 1,
+      currentPage + 2,
+      currentPage + 3,
+      currentPage - 1,
+      currentPage - 2
+    ];
+
+    const preloadAndCache = async () => {
+      try {
+        if (!('caches' in window)) {
+          // Fallback to simple browser preloading
+          pagesToPreload.forEach(p => {
+            if (p >= 1 && p <= 611) {
+              const img = new Image();
+              img.src = getPageImageUrl(p);
+            }
+          });
+          return;
+        }
+
+        const cache = await window.caches.open('quran-pages-cache');
+        
+        for (const p of pagesToPreload) {
+          if (p < 1 || p > 611) continue;
+          const url = getPageImageUrl(p);
+          
+          const cachedResponse = await cache.match(url);
+          if (!cachedResponse) {
+            fetch(url, { mode: 'cors', priority: 'low' } as any)
+              .then(res => {
+                if (res.ok) {
+                  cache.put(url, res);
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('Preload caching error:', err);
       }
-    });
-  }, [currentPage, selectedCDN]);
+    };
+
+    // Delay preloading slightly so the current page's active render image retrieves bandwidth priority
+    const timer = setTimeout(() => {
+      preloadAndCache();
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [currentPage, selectedCDN, fallbackIndex]);
 
   const handleNextPage = () => {
     if (currentPage && currentPage < 611) {
@@ -537,11 +643,25 @@ export default function Tilawat() {
 
                   <img
                     ref={imgRef}
-                    src={getPageImageUrl(currentPage)}
+                    src={resolvedImgUrl || getPageImageUrl(currentPage)}
                     alt={`Emdadia Hafezi Page ${currentPage}`}
                     className={`max-w-full max-h-full object-contain pointer-events-none select-none transition-all duration-300 ${isImgRenderLoading ? 'opacity-0' : 'opacity-100'}`}
                     referrerPolicy="no-referrer"
-                    onLoad={() => setIsImgRenderLoading(false)}
+                    onLoad={() => {
+                      setIsImgRenderLoading(false);
+                      const url = getPageImageUrl(currentPage);
+                      if ('caches' in window) {
+                        window.caches.open('quran-pages-cache').then(cache => {
+                          cache.match(url).then(match => {
+                            if (!match) {
+                              fetch(url, { mode: 'cors' }).then(res => {
+                                if (res.ok) cache.put(url, res);
+                              }).catch(() => {});
+                            }
+                          });
+                        });
+                      }
+                    }}
                     onError={() => {
                       if (fallbackIndex < REAL_PAGE_CDNS.length - 1) {
                         setFallbackIndex(prev => prev + 1);
@@ -755,11 +875,25 @@ export default function Tilawat() {
                   )}
                   <motion.img
                     ref={imgRef}
-                    src={getPageImageUrl(currentPage)}
+                    src={resolvedImgUrl || getPageImageUrl(currentPage)}
                     alt={`Holy Quran Page ${currentPage}`}
                     className={`max-h-[75vh] md:max-h-[82vh] object-contain select-none pointer-events-none transition-transform duration-300 ${isImgRenderLoading ? 'opacity-0' : 'opacity-100'}`}
                     referrerPolicy="no-referrer"
-                    onLoad={() => setIsImgRenderLoading(false)}
+                    onLoad={() => {
+                      setIsImgRenderLoading(false);
+                      const url = getPageImageUrl(currentPage);
+                      if ('caches' in window) {
+                        window.caches.open('quran-pages-cache').then(cache => {
+                          cache.match(url).then(match => {
+                            if (!match) {
+                              fetch(url, { mode: 'cors' }).then(res => {
+                                if (res.ok) cache.put(url, res);
+                              }).catch(() => {});
+                            }
+                          });
+                        });
+                      }
+                    }}
                     onError={() => {
                       if (fallbackIndex < REAL_PAGE_CDNS.length - 1) {
                         setFallbackIndex(prev => prev + 1);
