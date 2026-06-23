@@ -485,7 +485,7 @@ export default function Tilawat() {
     // IMMERSIVE FULL SCREEN (ZEN) MODE OVERLAY
     if (isFullScreen) {
       return createPortal(
-        <div className="fixed inset-0 z-[100] bg-[#0d0904] text-amber-100 flex flex-col justify-between overflow-hidden select-none">
+        <div className="fixed inset-0 z-[100] bg-[#FCFAF2] sm:bg-[#0d0904] text-amber-100 flex flex-col justify-between overflow-hidden select-none">
           {/* Top Panel - absolute overlays with smooth translations */}
           <div 
             onClick={(e) => e.stopPropagation()}
@@ -536,8 +536,8 @@ export default function Tilawat() {
                 setShowFullScreenControls(prev => !prev);
               }
             }}
-            className={`w-full h-full flex items-center justify-center bg-[#040301] transition-all duration-300 ${
-              showFullScreenControls ? 'pt-[68px] pb-[76px]' : 'p-2 md:p-6'
+            className={`w-full h-full flex items-center justify-center bg-[#FCFAF2] sm:bg-[#040301] transition-all duration-300 ${
+              showFullScreenControls ? 'pt-[68px] pb-[76px]' : 'p-0 sm:p-6'
             }`}
           >
             {/* LEFT RTL Hotzone overlay - Turns to next numerical page */}
@@ -598,7 +598,7 @@ export default function Tilawat() {
                     scale: 0.98 
                   }}
                   transition={{ type: "spring", damping: 28, stiffness: 190 }}
-                  className="w-full h-full flex items-center justify-center p-3 rounded-[2.5rem] bg-[#FCFAF2] border-[4px] border-[#221606] shadow-2xl relative overflow-hidden"
+                  className="w-full h-full flex items-center justify-center p-0 sm:p-3 rounded-none sm:rounded-[2.5rem] bg-[#FCFAF2] border-0 sm:border-[4px] sm:border-[#221606] shadow-none sm:shadow-2xl relative overflow-hidden"
                 >
                   {isImgRenderLoading && (
                     <div className="absolute inset-0 bg-[#FCFAF2] z-20 p-6 md:p-10 flex flex-col justify-between animate-pulse select-none">
