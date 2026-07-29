@@ -34,7 +34,13 @@ const QAAccordion: React.FC<{
         title: question,
         text: `প্রশ্ন: ${question}\n\nউত্তর: ${answer}`,
         url: window.location.href,
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          console.log('Share error:', err);
+        }
       });
+    } else {
+      handleCopy();
     }
   };
 
@@ -91,21 +97,23 @@ const QAAccordion: React.FC<{
 
               <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
                 {isLocal && (
-                  <>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
-                      className="p-3 bg-white text-emerald-600 rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-colors shadow-sm"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onDelete?.(item.id); }}
-                      className="p-3 bg-white text-rose-600 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors shadow-sm"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                    className="p-3 bg-white text-emerald-600 rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-colors shadow-sm"
+                  >
+                    <Edit size={18} />
+                  </button>
                 )}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete?.(item.id);
+                  }}
+                  className="p-3 bg-white text-rose-600 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors shadow-sm"
+                  title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
+                >
+                  <Trash2 size={18} />
+                </button>
                 <button 
                   onClick={handleCopy}
                   className="flex items-center gap-2 bg-white text-slate-600 px-5 py-3 rounded-xl font-bold border border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all active:scale-95 shadow-sm"
@@ -137,6 +145,7 @@ export default function QA() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [localQA, setLocalQA] = useLocalStorage<QAItem[]>('local_qa', []);
+  const [deletedQAIds, setDeletedQAIds] = useLocalStorage<number[]>('deleted_qa_ids', []);
 
   // Clear category filter on language change to avoid mismatch
   React.useEffect(() => {
@@ -159,8 +168,8 @@ export default function QA() {
   const allQA = useMemo(() => {
     const staticItems = staticQA.map(q => ({ ...q, isLocal: false }));
     const dynamicItems = localQA.map(q => ({ ...q, isLocal: true }));
-    return [...dynamicItems, ...staticItems];
-  }, [localQA]);
+    return [...dynamicItems, ...staticItems].filter(q => !deletedQAIds.some(dId => String(dId) === String(q.id)));
+  }, [localQA, deletedQAIds]);
 
   const filteredQA = useMemo(() => {
     return allQA.filter(q => {
@@ -209,12 +218,12 @@ export default function QA() {
   };
 
   const handleDeleteQA = (id: number) => {
-    // Simplified and robust delete logic
     const idStr = String(id);
     setLocalQA(prev => {
       if (!Array.isArray(prev)) return [];
       return prev.filter(q => String(q.id) !== idStr);
     });
+    setDeletedQAIds(prev => prev.includes(id) ? prev : [...prev, id]);
   };
 
   const handleSaveQA = (e: React.FormEvent) => {

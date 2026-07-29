@@ -3,13 +3,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Play, PlayCircle, X, Search, Youtube, Plus, Video as VideoIcon, Mic2, Baby, Music, Trash2, Upload, Link as LinkIcon, FileVideo } from 'lucide-react';
 import { videoItems as initialVideoItems, VideoItem } from '../data/media';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 export default function Video() {
   const { language } = useLanguage();
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<VideoItem['category'] | 'All'>('All');
-  const [userVideos, setUserVideos] = useState<VideoItem[]>([]);
+  const [userVideos, setUserVideos] = useLocalStorage<VideoItem[]>('user_video_tracks', []);
+  const [deletedVideoIds, setDeletedVideoIds] = useLocalStorage<number[]>('deleted_video_ids', []);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addMethod, setAddMethod] = useState<'link' | 'file'>('link');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,30 +27,9 @@ export default function Video() {
     category: 'Lecture' as VideoItem['category']
   });
 
-  // Load user videos from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('user_video_tracks');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Clean up any blob URLs from previous sessions as they become invalid
-        const validVideos = parsed.filter((v: VideoItem) => v.type !== 'direct' || !v.videoUrl?.startsWith('blob:'));
-        setUserVideos(validVideos);
-      } catch (e) {
-        console.error("Failed to load user videos", e);
-      }
-    }
-  }, []);
-
-  // Save user videos (only persistent ones)
-  useEffect(() => {
-    const persistentVideos = userVideos.filter(v => v.type === 'youtube' || (v.videoUrl && !v.videoUrl.startsWith('blob:')));
-    localStorage.setItem('user_video_tracks', JSON.stringify(persistentVideos));
-  }, [userVideos]);
-
   const allVideos = useMemo(() => {
-    return [...initialVideoItems, ...userVideos];
-  }, [userVideos]);
+    return [...initialVideoItems, ...userVideos].filter(v => !deletedVideoIds.some(dId => String(dId) === String(v.id)));
+  }, [userVideos, deletedVideoIds]);
 
   const categories = [
     { key: 'All', label: language === 'bn' ? 'সবগুলো' : 'All', icon: VideoIcon },
@@ -142,6 +123,7 @@ export default function Video() {
 
   const handleDeleteVideo = (id: number) => {
     setUserVideos(prev => prev.filter(v => v.id !== id));
+    setDeletedVideoIds(prev => prev.includes(id) ? prev : [...prev, id]);
   };
 
   const filteredVideos = useMemo(() => {
@@ -290,17 +272,16 @@ export default function Video() {
                     </span>
                   )}
                 </div>
-                {userVideos.some(v => v.id === video.id) && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteVideo(video.id);
-                    }}
-                    className="absolute top-6 right-6 p-2 bg-white/50 backdrop-blur-md text-slate-800 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-lg"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteVideo(video.id);
+                  }}
+                  className="absolute top-6 right-6 p-2 bg-white/80 backdrop-blur-md text-slate-800 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-lg z-10"
+                  title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
+                >
+                  <Trash2 size={18} />
+                </button>
               </div>
               <div className="p-8">
                 <h3 className="text-xl font-black text-slate-800 mb-2 group-hover:text-rose-600 transition-colors tracking-tight leading-tight">

@@ -12,6 +12,7 @@ export default function History() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [localHistory, setLocalHistory] = useLocalStorage<HistoryEvent[]>('local_history', []);
+  const [deletedHistoryIds, setDeletedHistoryIds] = useLocalStorage<number[]>('deleted_history_ids', []);
 
   // New/Edit History form state
   const [newEvent, setNewEvent] = useState({
@@ -31,8 +32,8 @@ export default function History() {
   const allHistory = useMemo(() => {
     const staticItems = historyEvents.map(h => ({ ...h, isLocal: false }));
     const dynamicItems = localHistory.map(h => ({ ...h, isLocal: true }));
-    return [...dynamicItems, ...staticItems];
-  }, [localHistory]);
+    return [...dynamicItems, ...staticItems].filter(h => !deletedHistoryIds.some(dId => String(dId) === String(h.id)));
+  }, [localHistory, deletedHistoryIds]);
 
   const handleShare = (event: HistoryEvent) => {
     const title = language === 'bn' ? event.title_bn : event.title;
@@ -42,7 +43,13 @@ export default function History() {
         title: title,
         text: summary,
         url: window.location.href,
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          console.log('Share error:', err);
+        }
       });
+    } else {
+      handleCopy(event);
     }
   };
 
@@ -94,9 +101,9 @@ export default function History() {
 
   const handleDeleteHistory = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    // Simplified delete logic to ensure it works
     const idToMatch = Number(id);
     setLocalHistory(prev => prev.filter(h => Number(h.id) !== idToMatch));
+    setDeletedHistoryIds(prev => prev.includes(idToMatch) ? prev : [...prev, idToMatch]);
     
     if (selectedEvent && Number(selectedEvent.id) === idToMatch) {
       setSelectedEvent(null);
@@ -197,22 +204,26 @@ export default function History() {
                           <span className="text-[10px] font-black uppercase tracking-widest">{t.history.readFullStory}</span>
                           <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                         </div>
-                        {isLocal && (
-                          <div className="flex gap-2">
+                        <div className="flex gap-2">
+                           {isLocal && (
                              <button 
                                onClick={(e) => handleOpenEditModal(e, event)}
                                className="p-2 bg-white text-emerald-600 rounded-lg border border-emerald-100 hover:bg-emerald-50 transition-colors"
+                               title="এডিট"
                              >
                                <Edit size={14} />
                              </button>
-                             <button 
-                               onClick={(e) => handleDeleteHistory(e, event.id)}
-                               className="p-2 bg-white text-rose-600 rounded-lg border border-rose-100 hover:bg-rose-50 transition-colors"
-                             >
-                               <Trash2 size={14} />
-                             </button>
-                          </div>
-                        )}
+                           )}
+                           <button 
+                             onClick={(e) => {
+                               handleDeleteHistory(e, event.id);
+                             }}
+                             className="p-2 bg-white text-rose-600 rounded-lg border border-rose-100 hover:bg-rose-50 transition-colors"
+                             title="ডিলিট"
+                           >
+                             <Trash2 size={14} />
+                           </button>
+                        </div>
                       </div>
                     </div>
                   </motion.div>

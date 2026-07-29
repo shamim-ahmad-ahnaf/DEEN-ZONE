@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mic2, Play, Pause, Headphones, ListMusic, Search, Music, Mic, Book, Plus, X, Trash2 } from 'lucide-react';
 import { audioItems as initialAudioItems, AudioItem } from '../data/media';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 export default function Audio() {
   const { t, language } = useLanguage();
@@ -10,7 +11,8 @@ export default function Audio() {
   const [activeCategory, setActiveCategory] = useState<AudioItem['category']>('Quran');
   const [searchTerm, setSearchTerm] = useState('');
   const [pausedId, setPausedId] = useState<number | null>(null);
-  const [userTracks, setUserTracks] = useState<AudioItem[]>([]);
+  const [userTracks, setUserTracks] = useLocalStorage<AudioItem[]>('user_audio_tracks', []);
+  const [deletedAudioIds, setDeletedAudioIds] = useLocalStorage<number[]>('deleted_audio_ids', []);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   // Form State
@@ -25,26 +27,9 @@ export default function Audio() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Load user tracks from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('user_audio_tracks');
-    if (saved) {
-      try {
-        setUserTracks(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load user tracks", e);
-      }
-    }
-  }, []);
-
-  // Save user tracks whenever they change
-  useEffect(() => {
-    localStorage.setItem('user_audio_tracks', JSON.stringify(userTracks));
-  }, [userTracks]);
-
   const allAudioItems = useMemo(() => {
-    return [...initialAudioItems, ...userTracks];
-  }, [userTracks]);
+    return [...initialAudioItems, ...userTracks].filter(a => !deletedAudioIds.some(dId => String(dId) === String(a.id)));
+  }, [userTracks, deletedAudioIds]);
 
   const handleAddTrack = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +63,7 @@ export default function Audio() {
       setPlayingId(null);
     }
     setUserTracks(prev => prev.filter(t => t.id !== id));
+    setDeletedAudioIds(prev => prev.includes(id) ? prev : [...prev, id]);
   };
 
   const togglePlay = (item: AudioItem) => {
@@ -271,17 +257,16 @@ export default function Audio() {
               </div>
 
               <div className="flex items-center gap-3 relative z-10">
-                {userTracks.some(t => t.id === item.id) && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTrack(item.id);
-                    }}
-                    className="p-3 text-slate-300 hover:text-rose-500 transition-colors"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTrack(item.id);
+                  }}
+                  className="p-3 text-slate-300 hover:text-rose-500 transition-colors"
+                  title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
+                >
+                  <Trash2 size={20} />
+                </button>
                 <button
                   onClick={() => togglePlay(item)}
                   className={`

@@ -3,13 +3,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Book as BookIcon, Download, X, Search, BookOpen, Library, Plus, Trash2, Globe, FileText, User } from 'lucide-react';
 import { books as initialBooks, Book } from '../data/books';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 export default function Books() {
   const { language, t } = useLanguage();
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [filter, setFilter] = useState<'All' | Book['category']>('All');
   const [search, setSearch] = useState('');
-  const [userBooks, setUserBooks] = useState<Book[]>([]);
+  const [userBooks, setUserBooks] = useLocalStorage<Book[]>('user_books', []);
+  const [deletedBookIds, setDeletedBookIds] = useLocalStorage<number[]>('deleted_book_ids', []);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   // New Book Form State
@@ -25,15 +27,9 @@ export default function Books() {
     pdfUrl: ''
   });
 
-  // Load and sync books
-  useEffect(() => {
-    const saved = localStorage.getItem('user_books');
-    if (saved) {
-      setUserBooks(JSON.parse(saved));
-    }
-  }, []);
-
-  const allBooks = useMemo(() => [...initialBooks, ...userBooks], [userBooks]);
+  const allBooks = useMemo(() => {
+    return [...initialBooks, ...userBooks].filter(b => !deletedBookIds.some(dId => String(dId) === String(b.id)));
+  }, [userBooks, deletedBookIds]);
 
   const filteredBooks = useMemo(() => {
     return allBooks.filter(book => {
@@ -81,6 +77,7 @@ export default function Books() {
     const updated = userBooks.filter(b => b.id !== id);
     setUserBooks(updated);
     localStorage.setItem('user_books', JSON.stringify(updated));
+    setDeletedBookIds(prev => prev.includes(id) ? prev : [...prev, id]);
     if (selectedBook?.id === id) setSelectedBook(null);
   };
 
@@ -212,18 +209,16 @@ export default function Books() {
                 </span>
               </div>
 
-              {/* Actions for User Books */}
-              {userBooks.some(ub => ub.id === book.id) && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteBook(book.id);
-                  }}
-                  className="absolute bottom-6 right-6 p-4 bg-white/10 backdrop-blur-xl text-white rounded-full hover:bg-rose-600 transition-all opacity-0 group-hover:opacity-100 border border-white/10 hover:scale-110"
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteBook(book.id);
+                }}
+                className="absolute bottom-6 right-6 p-4 bg-black/60 backdrop-blur-xl text-white rounded-full hover:bg-rose-600 transition-all opacity-80 group-hover:opacity-100 border border-white/20 hover:scale-110 z-10"
+                title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
 
             <div className="px-3" onClick={() => setSelectedBook(book)}>

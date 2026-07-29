@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Bookmark, BookmarkCheck, Copy, Share2, ArrowLeft, MessageCircle, BookOpen, Heart } from 'lucide-react';
-import { duas, duaCategories, Dua as DuaType } from '../data/duas';
+import { Search, Bookmark, BookmarkCheck, Copy, Share2, ArrowLeft, MessageCircle, BookOpen, Heart, Trash2, Plus, X } from 'lucide-react';
+import { duas as staticDuas, duaCategories, Dua as DuaType } from '../data/duas';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -11,10 +11,26 @@ export default function Dua() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedDua, setSelectedDua] = useState<DuaType | null>(null);
   const [bookmarks, setBookmarks] = useLocalStorage<number[]>('dua_bookmarks', []);
+  const [deletedDuaIds, setDeletedDuaIds] = useLocalStorage<number[]>('deleted_dua_ids', []);
+  const [userDuas, setUserDuas] = useLocalStorage<DuaType[]>('user_duas', []);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const [newDua, setNewDua] = useState({
+    title_bn: '',
+    arabic: '',
+    text_bn: '',
+    pronunciation_bn: '',
+    reference_bn: '',
+    category: 'দৈনন্দিন'
+  });
+
+  const allDuas = useMemo(() => {
+    return [...userDuas, ...staticDuas].filter(d => !deletedDuaIds.some(dId => String(dId) === String(d.id)));
+  }, [userDuas, deletedDuaIds]);
 
   const filteredDuas = useMemo(() => {
-    return duas.filter(d => {
+    return allDuas.filter(d => {
       const matchesSearch = d.text_bn.includes(searchTerm) || 
                           d.title_bn.includes(searchTerm) || 
                           d.reference_bn.includes(searchTerm) ||
@@ -22,7 +38,40 @@ export default function Dua() {
       const matchesCategory = !selectedCategory || d.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, allDuas]);
+
+  const handleDeleteDua = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    setUserDuas(prev => prev.filter(d => d.id !== id));
+    setDeletedDuaIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    if (selectedDua?.id === id) setSelectedDua(null);
+  };
+
+  const handleAddDua = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDua.title_bn || !newDua.text_bn) return;
+
+    const item: DuaType = {
+      id: Date.now(),
+      title_bn: newDua.title_bn,
+      arabic: newDua.arabic || newDua.title_bn,
+      text_bn: newDua.text_bn,
+      pronunciation_bn: newDua.pronunciation_bn || '',
+      reference_bn: newDua.reference_bn || 'ব্যক্তিগত সংগ্রহ',
+      category: newDua.category
+    };
+
+    setUserDuas(prev => [item, ...prev]);
+    setIsAddModalOpen(false);
+    setNewDua({
+      title_bn: '',
+      arabic: '',
+      text_bn: '',
+      pronunciation_bn: '',
+      reference_bn: '',
+      category: 'দৈনন্দিন'
+    });
+  };
 
   const toggleBookmark = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
@@ -46,7 +95,13 @@ export default function Dua() {
         title: 'একটি দোয়া শেয়ার করুন',
         text: `${dua.title_bn}\n\n${dua.text_bn}\n\n— (${dua.reference_bn})`,
         url: window.location.href,
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          console.log('Share error:', err);
+        }
       });
+    } else {
+      copyToClipboard(dua);
     }
   };
 
@@ -142,11 +197,20 @@ export default function Dua() {
   return (
     <div className="space-y-6 pb-20">
       <div className="bg-emerald-800 rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden shadow-xl">
-        <div className="relative z-10">
-          <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.dua.title}</h1>
-          <p className="text-emerald-100 italic opacity-80">{t.dua.subtitle}</p>
+        <div className="relative z-10 flex items-center justify-between w-full">
+          <div>
+            <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.dua.title}</h1>
+            <p className="text-emerald-100 italic opacity-80">{t.dua.subtitle}</p>
+          </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-white text-emerald-900 rounded-full font-black text-xs uppercase tracking-widest hover:bg-emerald-50 transition-all shadow-lg"
+          >
+            <Plus size={18} />
+            নতুন দোয়া
+          </button>
         </div>
-        <Heart size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12" />
+        <Heart size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12 pointer-events-none" />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
@@ -221,6 +285,15 @@ export default function Dua() {
                     >
                       {isBookmarked ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
                     </button>
+                    <button
+                      onClick={(e) => {
+                        handleDeleteDua(e, dua.id);
+                      }}
+                      className="p-2.5 rounded-xl text-slate-300 hover:bg-rose-50 hover:text-rose-600 transition-all"
+                      title="মুছে ফেলুন"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 </div>
 
@@ -252,6 +325,115 @@ export default function Dua() {
           <p className="text-slate-400 font-bold italic">দুঃখিত, এই বিষয়ে কোনো দোয়া পাওয়া যায়নি।</p>
         </div>
       )}
+
+      {/* Add Dua Modal */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[2.5rem] p-8 relative z-10 shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50"
+              >
+                <X size={20} />
+              </button>
+
+              <h2 className="text-2xl font-black text-slate-800 mb-6">
+                নতুন দোয়া যোগ করুন
+              </h2>
+
+              <form onSubmit={handleAddDua} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                    দোয়ার নাম / বিষয়
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newDua.title_bn}
+                    onChange={(e) => setNewDua({ ...newDua, title_bn: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                    আরবি টেক্সট (ঐচ্ছিক)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={newDua.arabic}
+                    onChange={(e) => setNewDua({ ...newDua, arabic: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500 font-arabic text-right text-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                    বাংলা অর্থ / উচ্চারণ
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={newDua.text_bn}
+                    onChange={(e) => setNewDua({ ...newDua, text_bn: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                      রেফারেন্স
+                    </label>
+                    <input
+                      type="text"
+                      value={newDua.reference_bn}
+                      onChange={(e) => setNewDua({ ...newDua, reference_bn: e.target.value })}
+                      placeholder="যেমন: বুখারী"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                      ক্যাটাগরি
+                    </label>
+                    <select
+                      value={newDua.category}
+                      onChange={(e) => setNewDua({ ...newDua, category: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                    >
+                      {duaCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all mt-4"
+                >
+                  দোয়া সংরক্ষণ করুন
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

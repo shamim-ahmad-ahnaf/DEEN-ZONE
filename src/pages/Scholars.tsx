@@ -12,6 +12,7 @@ export default function Scholars() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [localScholars, setLocalScholars] = useLocalStorage<Scholar[]>('local_scholars', []);
+  const [deletedScholarIds, setDeletedScholarIds] = useLocalStorage<number[]>('deleted_scholar_ids', []);
 
   // New/Edit Scholar form state
   const [newScholar, setNewScholar] = useState({
@@ -31,8 +32,8 @@ export default function Scholars() {
   const allScholars = useMemo(() => {
     const staticItems = staticScholars.map(s => ({ ...s, isLocal: false }));
     const dynamicItems = localScholars.map(s => ({ ...s, isLocal: true }));
-    return [...dynamicItems, ...staticItems];
-  }, [localScholars]);
+    return [...dynamicItems, ...staticItems].filter(s => !deletedScholarIds.some(dId => String(dId) === String(s.id)));
+  }, [localScholars, deletedScholarIds]);
 
   const handleShare = (scholar: Scholar) => {
     const name = language === 'bn' ? scholar.name_bn : scholar.name;
@@ -42,7 +43,13 @@ export default function Scholars() {
         title: name,
         text: bio,
         url: window.location.href,
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          console.log('Share error:', err);
+        }
       });
+    } else {
+      handleCopy(scholar);
     }
   };
 
@@ -101,6 +108,7 @@ export default function Scholars() {
       const idStr = String(id);
       return prev.filter(s => String(s.id) !== idStr);
     });
+    setDeletedScholarIds(prev => prev.includes(id) ? prev : [...prev, id]);
     
     if (selectedScholar && String(selectedScholar.id) === String(id)) {
       setSelectedScholar(null);
@@ -202,22 +210,26 @@ export default function Scholars() {
                         <span className="text-[10px] font-black uppercase tracking-widest">{t.scholars.fullProfile}</span>
                         <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                       </div>
-                      {isLocal && (
-                        <div className="flex gap-2">
+                      <div className="flex gap-2">
+                         {isLocal && (
                            <button 
                              onClick={(e) => handleOpenEditModal(e, scholar)}
                              className="p-2 bg-white text-emerald-600 rounded-lg border border-emerald-100 hover:bg-emerald-50 transition-colors"
+                             title="এডিট"
                            >
                              <Edit size={14} />
                            </button>
-                           <button 
-                             onClick={(e) => handleDeleteScholar(e, scholar.id)}
-                             className="p-2 bg-white text-rose-600 rounded-lg border border-rose-100 hover:bg-rose-50 transition-colors"
-                           >
-                             <Trash2 size={14} />
-                           </button>
-                        </div>
-                      )}
+                         )}
+                         <button 
+                           onClick={(e) => {
+                             handleDeleteScholar(e, scholar.id);
+                           }}
+                           className="p-2 bg-white text-rose-600 rounded-lg border border-rose-100 hover:bg-rose-50 transition-colors"
+                           title="ডিলিট"
+                         >
+                           <Trash2 size={14} />
+                         </button>
+                      </div>
                     </div>
                   </motion.div>
                 );

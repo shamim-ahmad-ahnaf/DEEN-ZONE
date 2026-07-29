@@ -29,7 +29,13 @@ const MasailCard: React.FC<{
         title: item.question_bn,
         text: `প্রশ্ন: ${item.question_bn}\n\nউত্তর: ${item.answer_bn}\n\nসূত্র: ${item.reference_bn}`,
         url: window.location.href,
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          console.log('Share error:', err);
+        }
       });
+    } else {
+      handleCopy();
     }
   };
 
@@ -94,21 +100,23 @@ const MasailCard: React.FC<{
                 </div>
                 <div className="flex items-center gap-3">
                   {isLocal && (
-                    <>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
-                        className="flex items-center gap-2 bg-white text-emerald-600 px-5 py-3 rounded-xl font-bold border border-emerald-100 hover:bg-emerald-50 transition-all active:scale-95 shadow-sm"
-                      >
-                        <span className="text-[10px] uppercase tracking-widest font-black">এডিট</span>
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); onDelete?.(item.id); }}
-                        className="flex items-center gap-2 bg-white text-rose-600 px-5 py-3 rounded-xl font-bold border border-rose-100 hover:bg-rose-50 transition-all active:scale-95 shadow-sm"
-                      >
-                        <span className="text-[10px] uppercase tracking-widest font-black">ডিলিট</span>
-                      </button>
-                    </>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                      className="flex items-center gap-2 bg-white text-emerald-600 px-5 py-3 rounded-xl font-bold border border-emerald-100 hover:bg-emerald-50 transition-all active:scale-95 shadow-sm"
+                    >
+                      <span className="text-[10px] uppercase tracking-widest font-black">এডিট</span>
+                    </button>
                   )}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete?.(item.id);
+                    }}
+                    className="flex items-center gap-2 bg-white text-rose-600 px-5 py-3 rounded-xl font-bold border border-rose-100 hover:bg-rose-50 transition-all active:scale-95 shadow-sm"
+                    title="ডিলিট"
+                  >
+                    <span className="text-[10px] uppercase tracking-widest font-black">ডিলিট</span>
+                  </button>
                   <button 
                     onClick={handleCopy}
                     className="flex items-center gap-2 bg-white text-slate-600 px-5 py-3 rounded-xl font-bold border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all active:scale-95 shadow-sm"
@@ -141,6 +149,7 @@ export default function Masail() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [localMasails, setLocalMasails] = useLocalStorage<MasailType[]>('local_masails', []);
+  const [deletedMasailIds, setDeletedMasailIds] = useLocalStorage<number[]>('deleted_masail_ids', []);
   
   // Submit state for user question
   const [userQuestion, setUserQuestion] = useState('');
@@ -156,8 +165,8 @@ export default function Masail() {
   const allMasails = useMemo(() => {
     const staticItems = masailItems.map(m => ({ ...m, isLocal: false }));
     const dynamicItems = localMasails.map(m => ({ ...m, isLocal: true }));
-    return [...dynamicItems, ...staticItems];
-  }, [localMasails]);
+    return [...dynamicItems, ...staticItems].filter(m => !deletedMasailIds.some(dId => String(dId) === String(m.id)));
+  }, [localMasails, deletedMasailIds]);
 
   const filteredMasail = useMemo(() => {
     return allMasails.filter(m => {
@@ -199,9 +208,8 @@ export default function Masail() {
   };
 
   const handleDeleteMasail = (id: number) => {
-    // Simple state update without confirm first to test, then we can add a better custom UI if needed
-    // But normally window.confirm should work. Let's make sure the id comparison is robust.
     setLocalMasails(prev => prev.filter(m => Number(m.id) !== Number(id)));
+    setDeletedMasailIds(prev => prev.includes(id) ? prev : [...prev, id]);
   };
 
   const handleSaveMasail = (e: React.FormEvent) => {

@@ -1,17 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileText, X, Calendar, User, BookOpen, Share2, ArrowLeft, Bookmark } from 'lucide-react';
-import { articles, Article } from '../data/educational';
+import { FileText, X, Calendar, User, BookOpen, Share2, ArrowLeft, Bookmark, Plus, Trash2 } from 'lucide-react';
+import { articles as initialArticles, Article } from '../data/educational';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 export default function Articles() {
   const { t, language } = useLanguage();
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [activeCategory, setActiveCategory] = useState<'All' | Article['category']>('All');
+  const [userArticles, setUserArticles] = useLocalStorage<Article[]>('user_articles', []);
+  const [deletedArticleIds, setDeletedArticleIds] = useLocalStorage<number[]>('deleted_article_ids', []);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const filteredArticles = articles.filter(article => 
+  const [newArticle, setNewArticle] = useState({
+    title_bn: '',
+    title: '',
+    excerpt_bn: '',
+    excerpt: '',
+    content_bn: '',
+    content: '',
+    author_bn: '',
+    author: '',
+    category: 'Spiritual' as Article['category'],
+    category_bn: 'আধ্যাত্মিকতা',
+    image: ''
+  });
+
+  const allArticles = useMemo(() => {
+    return [...userArticles, ...initialArticles].filter(a => !deletedArticleIds.some(dId => String(dId) === String(a.id)));
+  }, [userArticles, deletedArticleIds]);
+
+  const filteredArticles = allArticles.filter(article => 
     activeCategory === 'All' || article.category === activeCategory
   );
+
+  const handleDeleteArticle = (id: number) => {
+    setUserArticles(prev => prev.filter(a => a.id !== id));
+    setDeletedArticleIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    if (selectedArticle?.id === id) setSelectedArticle(null);
+  };
+
+  const handleAddArticle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newArticle.title_bn && !newArticle.title) return;
+
+    const articleItem: Article = {
+      id: Date.now(),
+      title_bn: newArticle.title_bn || newArticle.title,
+      title: newArticle.title || newArticle.title_bn,
+      excerpt_bn: newArticle.excerpt_bn || newArticle.excerpt,
+      excerpt: newArticle.excerpt || newArticle.excerpt_bn,
+      content_bn: newArticle.content_bn || newArticle.content,
+      content: newArticle.content || newArticle.content_bn,
+      author_bn: newArticle.author_bn || newArticle.author || 'লেখক',
+      author: newArticle.author || newArticle.author_bn || 'Author',
+      category: newArticle.category,
+      category_bn: newArticle.category === 'Spiritual' ? 'আধ্যাত্মিকতা' : newArticle.category === 'Society' ? 'সমাজ' : newArticle.category === 'Health' ? 'স্বাস্থ্য' : newArticle.category === 'Knowledge' ? 'জ্ঞান' : 'যুবসমাজ',
+      date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+      date_bn: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }),
+      image: newArticle.image || 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=800&q=80'
+    };
+
+    setUserArticles(prev => [articleItem, ...prev]);
+    setIsAddModalOpen(false);
+    setNewArticle({
+      title_bn: '',
+      title: '',
+      excerpt_bn: '',
+      excerpt: '',
+      content_bn: '',
+      content: '',
+      author_bn: '',
+      author: '',
+      category: 'Spiritual',
+      category_bn: 'আধ্যাত্মিকতা',
+      image: ''
+    });
+  };
 
   const categories: ('All' | Article['category'])[] = ['All', 'Spiritual', 'Society', 'Health', 'Knowledge', 'Youth'];
 
@@ -21,6 +87,10 @@ export default function Articles() {
         title: language === 'bn' ? article.title_bn : article.title,
         text: language === 'bn' ? article.excerpt_bn : article.excerpt,
         url: window.location.href,
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          console.log('Share error:', err);
+        }
       });
     }
   };
@@ -28,14 +98,23 @@ export default function Articles() {
   return (
     <div className="space-y-8 pb-20">
       <section className="bg-emerald-800 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="relative z-10">
-          <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.nav.articles}</h1>
-          <p className="text-emerald-100 italic opacity-80">{t.articles.subtitle}</p>
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black mb-2 uppercase tracking-tighter">{t.nav.articles}</h1>
+            <p className="text-emerald-100 italic opacity-80">{t.articles.subtitle}</p>
+          </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-white text-emerald-900 rounded-full font-black text-xs uppercase tracking-widest hover:bg-emerald-50 transition-all shadow-lg"
+          >
+            <Plus size={18} />
+            {language === 'bn' ? 'নতুন আর্টিকেল' : 'Add Article'}
+          </button>
         </div>
-        <FileText size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12" />
+        <FileText size={120} className="absolute -right-8 -top-8 opacity-10 rotate-12 pointer-events-none" />
       </section>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none items-center">
         {categories.map((cat) => (
           <button
             key={cat}
@@ -46,7 +125,7 @@ export default function Articles() {
               : 'bg-white text-slate-500 border-slate-100 hover:border-emerald-200'
             }`}
           >
-            {cat === 'All' ? t.articles.all : (language === 'bn' ? articles.find(a => a.category === cat)?.category_bn || cat : cat)}
+            {cat === 'All' ? t.articles.all : (language === 'bn' ? initialArticles.find(a => a.category === cat)?.category_bn || cat : cat)}
           </button>
         ))}
       </div>
@@ -66,7 +145,7 @@ export default function Articles() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => setSelectedArticle(article)}
-              className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col md:flex-row cursor-pointer transition-all hover:shadow-xl hover:border-emerald-200"
+              className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col md:flex-row cursor-pointer transition-all hover:shadow-xl hover:border-emerald-200 relative"
             >
               <div className="h-56 md:h-auto md:w-72 flex-shrink-0 bg-slate-100 relative overflow-hidden">
                 <img 
@@ -75,6 +154,16 @@ export default function Articles() {
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteArticle(article.id);
+                  }}
+                  className="absolute top-4 right-4 p-2.5 bg-white/80 backdrop-blur-md text-slate-800 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-lg z-10"
+                  title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
               <div className="p-8 flex-1 flex flex-col justify-between">
                 <div>
@@ -106,6 +195,135 @@ export default function Articles() {
           );
         })}
       </div>
+
+      {filteredArticles.length === 0 && (
+        <div className="text-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200 text-slate-400 font-bold italic">
+          {language === 'bn' ? 'কোন আর্টিকেল পাওয়া যায়নি' : 'No articles found'}
+        </div>
+      )}
+
+      {/* Add Article Modal */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[2.5rem] p-8 relative z-10 shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50"
+              >
+                <X size={20} />
+              </button>
+
+              <h2 className="text-2xl font-black text-slate-800 mb-6">
+                {language === 'bn' ? 'নতুন আর্টিকেল যোগ করুন' : 'Add New Article'}
+              </h2>
+
+              <form onSubmit={handleAddArticle} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                    {language === 'bn' ? 'শিরোনাম (বাংলা)' : 'Title (Bengali)'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newArticle.title_bn}
+                    onChange={(e) => setNewArticle({ ...newArticle, title_bn: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                    {language === 'bn' ? 'সংক্ষিপ্ত বিবরণ' : 'Excerpt'}
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={newArticle.excerpt_bn}
+                    onChange={(e) => setNewArticle({ ...newArticle, excerpt_bn: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                    {language === 'bn' ? 'সম্পূর্ণ মূল লেখা' : 'Full Content'}
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={newArticle.content_bn}
+                    onChange={(e) => setNewArticle({ ...newArticle, content_bn: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                      {language === 'bn' ? 'লেখক' : 'Author'}
+                    </label>
+                    <input
+                      type="text"
+                      value={newArticle.author_bn}
+                      onChange={(e) => setNewArticle({ ...newArticle, author_bn: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                      {language === 'bn' ? 'ক্যাটাগরি' : 'Category'}
+                    </label>
+                    <select
+                      value={newArticle.category}
+                      onChange={(e) => setNewArticle({ ...newArticle, category: e.target.value as any })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="Spiritual">Spiritual (আধ্যাত্মিকতা)</option>
+                      <option value="Society">Society (সমাজ)</option>
+                      <option value="Health">Health (স্বাস্থ্য)</option>
+                      <option value="Knowledge">Knowledge (জ্ঞান)</option>
+                      <option value="Youth">Youth (যুবসমাজ)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+                    {language === 'bn' ? 'ছবি ইউআরএল (ঐচ্ছিক)' : 'Image URL (Optional)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newArticle.image}
+                    onChange={(e) => setNewArticle({ ...newArticle, image: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all mt-4"
+                >
+                  {language === 'bn' ? 'আর্টিকেল প্রকাশ করুন' : 'Publish Article'}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {selectedArticle && (
