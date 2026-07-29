@@ -16,14 +16,14 @@ export const BottomNav = () => {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-2xl border border-white/20 rounded-[2rem] flex justify-around p-2.5 z-50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-black/5">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-200 flex justify-around items-center px-1 py-1.5 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[calc(0.375rem+env(safe-area-inset-bottom,0px))]">
       {mobileNavItems.map((item) => (
         <NavLink
           key={item.path}
           to={item.path}
           className={({ isActive }) => `
-            flex flex-col items-center gap-1 p-2 transition-all relative rounded-2xl
-            ${isActive ? 'text-emerald-800 bg-emerald-50/50' : 'text-slate-400'}
+            flex flex-col items-center justify-center gap-1 py-1 px-2 transition-all relative rounded-xl flex-1
+            ${isActive ? 'text-emerald-700 font-bold' : 'text-slate-400 hover:text-slate-600'}
           `}
         >
           {({ isActive }) => (
@@ -32,9 +32,9 @@ export const BottomNav = () => {
                 animate={isActive ? { scale: 1.1, y: -1 } : { scale: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
-                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <item.icon size={21} strokeWidth={isActive ? 2.5 : 1.8} />
               </motion.div>
-              <span className={`text-[8px] font-black uppercase tracking-widest font-display transition-all ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+              <span className={`text-[9px] tracking-tight font-medium font-display transition-all ${isActive ? 'text-emerald-800 font-bold' : 'text-slate-500'}`}>
                 {item.label}
               </span>
             </>

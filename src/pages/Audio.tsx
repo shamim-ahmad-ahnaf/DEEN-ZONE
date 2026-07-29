@@ -295,7 +295,7 @@ export default function Audio() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-24 left-6 right-6 bg-slate-900 border border-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.4)] rounded-[2rem] p-4 flex items-center justify-between z-50 overflow-hidden"
+            className="fixed bottom-16 left-4 right-4 md:bottom-6 md:left-auto md:right-6 md:w-96 bg-slate-900 border border-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.4)] rounded-2xl p-3.5 flex items-center justify-between z-50 overflow-hidden"
           >
              <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none" />
             
