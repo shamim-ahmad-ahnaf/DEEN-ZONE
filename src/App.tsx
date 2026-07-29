@@ -82,7 +82,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/prayer" element={<Prayer />} />
-          <Route path="/quran" element={<Quran />} />
+          <Route path="/quran" element={<Tilawat />} />
           <Route path="/tilawat" element={<Tilawat />} />
           <Route path="/hadith" element={<Hadith />} />
           <Route path="/tasbih" element={<Tasbih />} />

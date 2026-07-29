@@ -11,7 +11,6 @@ export const getNavItems = (t: any) => [
   { path: '/', label: t.nav.home, icon: Home },
   { path: '/prayer', label: t.nav.prayer, icon: Clock },
   { path: '/quran', label: t.nav.quran, icon: BookOpen },
-  { path: '/tilawat', label: t.nav.tilawat, icon: BookOpen },
   { path: '/hadith', label: t.nav.hadith, icon: MessageSquare },
   { path: '/tasbih', label: t.nav.tasbih, icon: Fingerprint },
   { path: '/dua', label: t.nav.dua, icon: Heart },
