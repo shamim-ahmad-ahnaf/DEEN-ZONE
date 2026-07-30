@@ -4,9 +4,12 @@ import { FileText, X, Calendar, User, BookOpen, Share2, ArrowLeft, Bookmark, Plu
 import { articles as initialArticles, Article } from '../data/educational';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function Articles() {
   const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [activeCategory, setActiveCategory] = useState<'All' | Article['category']>('All');
   const [userArticles, setUserArticles] = useLocalStorage<Article[]>('user_articles', []);
@@ -35,10 +38,19 @@ export default function Articles() {
     activeCategory === 'All' || article.category === activeCategory
   );
 
-  const handleDeleteArticle = (id: number) => {
-    setUserArticles(prev => prev.filter(a => a.id !== id));
-    setDeletedArticleIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    if (selectedArticle?.id === id) setSelectedArticle(null);
+  const handleDeleteArticle = (articleItem: Article) => {
+    const titleText = language === 'bn' ? articleItem.title_bn : articleItem.title;
+    requestDelete(
+      titleText,
+      () => {
+        setUserArticles(prev => prev.filter(a => a.id !== articleItem.id));
+        setDeletedArticleIds(prev => prev.includes(articleItem.id) ? prev : [...prev, articleItem.id]);
+        if (selectedArticle?.id === articleItem.id) setSelectedArticle(null);
+      },
+      () => {
+        setDeletedArticleIds(prev => prev.filter(dId => String(dId) !== String(articleItem.id)));
+      }
+    );
   };
 
   const handleAddArticle = (e: React.FormEvent) => {
@@ -157,7 +169,7 @@ export default function Articles() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteArticle(article.id);
+                    handleDeleteArticle(article);
                   }}
                   className="absolute top-4 right-4 p-2.5 bg-white/80 backdrop-blur-md text-slate-800 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-lg z-10"
                   title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
@@ -425,6 +437,22 @@ export default function Articles() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

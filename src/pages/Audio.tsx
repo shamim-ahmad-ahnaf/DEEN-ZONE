@@ -4,9 +4,12 @@ import { Mic2, Play, Pause, Headphones, ListMusic, Search, Music, Mic, Book, Plu
 import { audioItems as initialAudioItems, AudioItem } from '../data/media';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function Audio() {
   const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<AudioItem['category']>('Quran');
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,13 +64,22 @@ export default function Audio() {
     setCustomCategoryInput('');
   };
 
-  const handleDeleteTrack = (id: number) => {
-    if (playingId === id) {
-      audioRef.current?.pause();
-      setPlayingId(null);
-    }
-    setUserTracks(prev => prev.filter(t => t.id !== id));
-    setDeletedAudioIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  const confirmDeleteTrack = (item: AudioItem) => {
+    const trackTitle = language === 'bn' ? item.title_bn : item.title;
+    requestDelete(
+      trackTitle,
+      () => {
+        if (playingId === item.id) {
+          audioRef.current?.pause();
+          setPlayingId(null);
+        }
+        setUserTracks(prev => prev.filter(t => t.id !== item.id));
+        setDeletedAudioIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+      },
+      () => {
+        setDeletedAudioIds(prev => prev.filter(dId => String(dId) !== String(item.id)));
+      }
+    );
   };
 
   const togglePlay = (item: AudioItem) => {
@@ -129,7 +141,7 @@ export default function Audio() {
 
   const categories = useMemo(() => {
     const baseKeys = ['Quran', 'Nasheed', 'Bayan'];
-    const customKeys = Array.from(new Set(allAudioItems.map(a => a.category))).filter(c => c && !baseKeys.includes(c));
+    const customKeys = Array.from(new Set(allAudioItems.map(a => a.category))).filter((c): c is string => typeof c === 'string' && !baseKeys.includes(c));
     
     const baseList = [
       { key: 'Quran', label: language === 'bn' ? 'কুরআন তিলাওয়াত' : 'Quran', icon: Book },
@@ -277,7 +289,7 @@ export default function Audio() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteTrack(item.id);
+                    confirmDeleteTrack(item);
                   }}
                   className="p-3 text-slate-300 hover:text-rose-500 transition-colors"
                   title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
@@ -491,6 +503,22 @@ export default function Audio() {
           {t.common.comingSoon}
         </button>
       </div>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

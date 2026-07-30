@@ -4,9 +4,12 @@ import { Landmark, Calendar, ChevronRight, ArrowLeft, Share2, Copy, BookOpen, Qu
 import { historyEvents, HistoryEvent } from '../data/history';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function History() {
   const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [selectedEvent, setSelectedEvent] = useState<HistoryEvent | null>(null);
   const [copied, setCopied] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -99,15 +102,23 @@ export default function History() {
     setShowAddModal(true);
   };
 
-  const handleDeleteHistory = (e: React.MouseEvent, id: number) => {
+  const handleDeleteHistory = (e: React.MouseEvent, eventItem: HistoryEvent) => {
     e.stopPropagation();
-    const idToMatch = Number(id);
-    setLocalHistory(prev => prev.filter(h => Number(h.id) !== idToMatch));
-    setDeletedHistoryIds(prev => prev.includes(idToMatch) ? prev : [...prev, idToMatch]);
-    
-    if (selectedEvent && Number(selectedEvent.id) === idToMatch) {
-      setSelectedEvent(null);
-    }
+    const idToMatch = Number(eventItem.id);
+    const titleText = language === 'bn' ? eventItem.title_bn : eventItem.title;
+    requestDelete(
+      titleText,
+      () => {
+        setLocalHistory(prev => prev.filter(h => Number(h.id) !== idToMatch));
+        setDeletedHistoryIds(prev => prev.includes(idToMatch) ? prev : [...prev, idToMatch]);
+        if (selectedEvent && Number(selectedEvent.id) === idToMatch) {
+          setSelectedEvent(null);
+        }
+      },
+      () => {
+        setDeletedHistoryIds(prev => prev.filter(dId => String(dId) !== String(idToMatch)));
+      }
+    );
   };
 
   const handleSaveHistory = (e: React.FormEvent) => {
@@ -216,7 +227,7 @@ export default function History() {
                            )}
                            <button 
                              onClick={(e) => {
-                               handleDeleteHistory(e, event.id);
+                               handleDeleteHistory(e, event);
                              }}
                              className="p-2 bg-white text-rose-600 rounded-lg border border-rose-100 hover:bg-rose-50 transition-colors"
                              title="ডিলিট"
@@ -257,7 +268,7 @@ export default function History() {
                       <Edit size={20} />
                     </button>
                     <button 
-                      onClick={(e) => handleDeleteHistory(e, selectedEvent.id)}
+                      onClick={(e) => handleDeleteHistory(e, selectedEvent)}
                       className="p-3 bg-white border border-slate-100 text-rose-600 rounded-2xl hover:bg-rose-50 hover:border-rose-200 transition-all shadow-sm"
                     >
                       <Trash2 size={20} />
@@ -449,6 +460,22 @@ export default function History() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

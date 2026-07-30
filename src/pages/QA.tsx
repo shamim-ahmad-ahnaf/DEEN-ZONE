@@ -4,12 +4,14 @@ import { HelpCircle, ChevronDown, MessageCircle, Search, Plus, X, Edit, Trash2, 
 import { qaItems as staticQA, QAItem, qaCategoriesBn, qaCategories } from '../data/qa';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 const QAAccordion: React.FC<{ 
   item: QAItem;
   isLocal?: boolean;
   onEdit?: (item: QAItem) => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (item: QAItem) => void;
 }> = ({ item, isLocal, onEdit, onDelete }) => {
   const { language, t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -19,8 +21,8 @@ const QAAccordion: React.FC<{
   const answer = language === 'bn' ? item.answer_bn : item.answer;
   const category = language === 'bn' ? item.category_bn : item.category;
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCopy = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const text = `প্রশ্ন: ${question}\n\nউত্তর: ${answer}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -107,7 +109,7 @@ const QAAccordion: React.FC<{
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete?.(item.id);
+                    onDelete?.(item);
                   }}
                   className="p-3 bg-white text-rose-600 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors shadow-sm"
                   title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
@@ -139,6 +141,7 @@ const QAAccordion: React.FC<{
 
 export default function QA() {
   const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showAskModal, setShowAskModal] = useState(false);
@@ -217,13 +220,22 @@ export default function QA() {
     setShowAddModal(true);
   };
 
-  const handleDeleteQA = (id: number) => {
-    const idStr = String(id);
-    setLocalQA(prev => {
-      if (!Array.isArray(prev)) return [];
-      return prev.filter(q => String(q.id) !== idStr);
-    });
-    setDeletedQAIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  const handleDeleteQA = (item: QAItem) => {
+    const idStr = String(item.id);
+    const titleText = language === 'bn' ? item.question_bn : item.question;
+    requestDelete(
+      titleText,
+      () => {
+        setLocalQA(prev => {
+          if (!Array.isArray(prev)) return [];
+          return prev.filter(q => String(q.id) !== idStr);
+        });
+        setDeletedQAIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+      },
+      () => {
+        setDeletedQAIds(prev => prev.filter(dId => String(dId) !== idStr));
+      }
+    );
   };
 
   const handleSaveQA = (e: React.FormEvent) => {
@@ -476,6 +488,22 @@ export default function QA() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

@@ -4,9 +4,12 @@ import { Play, PlayCircle, X, Search, Youtube, Plus, Video as VideoIcon, Mic2, B
 import { videoItems as initialVideoItems, VideoItem } from '../data/media';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function Video() {
   const { language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<VideoItem['category'] | 'All'>('All');
@@ -33,7 +36,7 @@ export default function Video() {
 
   const categories = useMemo(() => {
     const baseKeys = ['All', 'Lecture', 'Quran', 'Kids', 'Nasheed'];
-    const customKeys = Array.from(new Set(allVideos.map(v => v.category))).filter(c => c && !baseKeys.includes(c));
+    const customKeys = Array.from(new Set(allVideos.map(v => v.category))).filter((c): c is string => typeof c === 'string' && !baseKeys.includes(c));
     
     const baseList = [
       { key: 'All', label: language === 'bn' ? 'সবগুলো' : 'All', icon: VideoIcon },
@@ -138,9 +141,18 @@ export default function Video() {
     setAddMethod('link');
   };
 
-  const handleDeleteVideo = (id: number) => {
-    setUserVideos(prev => prev.filter(v => v.id !== id));
-    setDeletedVideoIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  const confirmDeleteVideo = (video: VideoItem) => {
+    const videoTitle = language === 'bn' ? video.title_bn : video.title;
+    requestDelete(
+      videoTitle,
+      () => {
+        setUserVideos(prev => prev.filter(v => v.id !== video.id));
+        setDeletedVideoIds(prev => prev.includes(video.id) ? prev : [...prev, video.id]);
+      },
+      () => {
+        setDeletedVideoIds(prev => prev.filter(dId => String(dId) !== String(video.id)));
+      }
+    );
   };
 
   const filteredVideos = useMemo(() => {
@@ -292,7 +304,7 @@ export default function Video() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteVideo(video.id);
+                    confirmDeleteVideo(video);
                   }}
                   className="absolute top-6 right-6 p-2 bg-white/80 backdrop-blur-md text-slate-800 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-lg z-10"
                   title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
@@ -613,6 +625,22 @@ export default function Video() {
           {language === 'bn' ? 'এখন আপনি ইউটিউবের পাশাপাশি নিজের সরাসরি ভিডিও ফাইল বা লিংক যোগ করে দেখতে পারবেন কোনো সমস্যা ছাড়াই।' : 'Now you can add direct video files or links alongside YouTube and watch them seamlessly.'}
         </p>
       </div>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

@@ -4,9 +4,12 @@ import { Search, Bookmark, BookmarkCheck, Copy, Share2, ArrowLeft, MessageCircle
 import { duas as staticDuas, duaCategories, Dua as DuaType } from '../data/duas';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function Dua() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedDua, setSelectedDua] = useState<DuaType | null>(null);
@@ -40,11 +43,19 @@ export default function Dua() {
     });
   }, [searchTerm, selectedCategory, allDuas]);
 
-  const handleDeleteDua = (e: React.MouseEvent, id: number) => {
+  const handleDeleteDua = (e: React.MouseEvent, duaItem: DuaType) => {
     e.stopPropagation();
-    setUserDuas(prev => prev.filter(d => d.id !== id));
-    setDeletedDuaIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    if (selectedDua?.id === id) setSelectedDua(null);
+    requestDelete(
+      duaItem.title_bn,
+      () => {
+        setUserDuas(prev => prev.filter(d => d.id !== duaItem.id));
+        setDeletedDuaIds(prev => prev.includes(duaItem.id) ? prev : [...prev, duaItem.id]);
+        if (selectedDua?.id === duaItem.id) setSelectedDua(null);
+      },
+      () => {
+        setDeletedDuaIds(prev => prev.filter(dId => String(dId) !== String(duaItem.id)));
+      }
+    );
   };
 
   const handleAddDua = (e: React.FormEvent) => {
@@ -101,7 +112,7 @@ export default function Dua() {
         }
       });
     } else {
-      copyToClipboard(dua);
+      handleCopy(e, dua);
     }
   };
 
@@ -287,7 +298,7 @@ export default function Dua() {
                     </button>
                     <button
                       onClick={(e) => {
-                        handleDeleteDua(e, dua.id);
+                        handleDeleteDua(e, dua);
                       }}
                       className="p-2.5 rounded-xl text-slate-300 hover:bg-rose-50 hover:text-rose-600 transition-all"
                       title="মুছে ফেলুন"
@@ -434,6 +445,22 @@ export default function Dua() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

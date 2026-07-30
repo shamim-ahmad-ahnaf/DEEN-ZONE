@@ -4,9 +4,12 @@ import { Users, BookOpen, ChevronRight, ArrowLeft, Share2, Copy, Plus, X, Image 
 import { scholars as staticScholars, Scholar } from '../data/scholars';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function Scholars() {
   const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [selectedScholar, setSelectedScholar] = useState<Scholar | null>(null);
   const [copied, setCopied] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -100,19 +103,26 @@ export default function Scholars() {
     setShowAddModal(true);
   };
 
-  const handleDeleteScholar = (e: React.MouseEvent, id: number) => {
+  const handleDeleteScholar = (e: React.MouseEvent, scholarItem: Scholar) => {
     e.stopPropagation();
-    
-    setLocalScholars(prev => {
-      if (!Array.isArray(prev)) return [];
-      const idStr = String(id);
-      return prev.filter(s => String(s.id) !== idStr);
-    });
-    setDeletedScholarIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    
-    if (selectedScholar && String(selectedScholar.id) === String(id)) {
-      setSelectedScholar(null);
-    }
+    const titleText = language === 'bn' ? scholarItem.name_bn : scholarItem.name;
+    requestDelete(
+      titleText,
+      () => {
+        setLocalScholars(prev => {
+          if (!Array.isArray(prev)) return [];
+          const idStr = String(scholarItem.id);
+          return prev.filter(s => String(s.id) !== idStr);
+        });
+        setDeletedScholarIds(prev => prev.includes(scholarItem.id) ? prev : [...prev, scholarItem.id]);
+        if (selectedScholar && String(selectedScholar.id) === String(scholarItem.id)) {
+          setSelectedScholar(null);
+        }
+      },
+      () => {
+        setDeletedScholarIds(prev => prev.filter(dId => String(dId) !== String(scholarItem.id)));
+      }
+    );
   };
 
   const handleSaveScholar = (e: React.FormEvent) => {
@@ -222,7 +232,7 @@ export default function Scholars() {
                          )}
                          <button 
                            onClick={(e) => {
-                             handleDeleteScholar(e, scholar.id);
+                             handleDeleteScholar(e, scholar);
                            }}
                            className="p-2 bg-white text-rose-600 rounded-lg border border-rose-100 hover:bg-rose-50 transition-colors"
                            title="ডিলিট"
@@ -262,7 +272,7 @@ export default function Scholars() {
                       <Edit size={20} />
                     </button>
                     <button 
-                      onClick={(e) => handleDeleteScholar(e, selectedScholar.id)}
+                      onClick={(e) => handleDeleteScholar(e, selectedScholar)}
                       className="p-3 bg-white border border-slate-100 text-rose-600 rounded-2xl hover:bg-rose-50 hover:border-rose-200 transition-all shadow-sm"
                     >
                       <Trash2 size={20} />
@@ -462,6 +472,22 @@ export default function Scholars() {
            <span className="block mt-4 font-black text-gold-500 uppercase tracking-widest not-italic text-xs">— মহান মনীষীদের বাণী</span>
          </p>
       </div>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

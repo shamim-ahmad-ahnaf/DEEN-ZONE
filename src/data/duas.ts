@@ -3,6 +3,7 @@ export interface Dua {
   title_bn: string;
   arabic: string;
   text_bn: string;
+  pronunciation_bn?: string;
   reference_bn: string;
   category: string;
   significance_bn?: string;

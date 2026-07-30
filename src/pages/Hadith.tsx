@@ -4,9 +4,12 @@ import { Quote, Search, Bookmark, BookmarkCheck, Copy, Share2, ArrowLeft, Messag
 import { hadiths as staticHadiths, categories, Hadith as HadithType } from '../data/hadiths';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function Hadith() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedHadith, setSelectedHadith] = useState<HadithType | null>(null);
@@ -40,11 +43,20 @@ export default function Hadith() {
     });
   }, [searchTerm, selectedCategory, allHadiths]);
 
-  const handleDeleteHadith = (e: React.MouseEvent, id: number) => {
+  const handleDeleteHadith = (e: React.MouseEvent, hadithItem: HadithType) => {
     e.stopPropagation();
-    setUserHadiths(prev => prev.filter(h => h.id !== id));
-    setDeletedHadithIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    if (selectedHadith?.id === id) setSelectedHadith(null);
+    const titleText = `${hadithItem.source_bn} - ${hadithItem.hadith_number}`;
+    requestDelete(
+      titleText,
+      () => {
+        setUserHadiths(prev => prev.filter(h => h.id !== hadithItem.id));
+        setDeletedHadithIds(prev => prev.includes(hadithItem.id) ? prev : [...prev, hadithItem.id]);
+        if (selectedHadith?.id === hadithItem.id) setSelectedHadith(null);
+      },
+      () => {
+        setDeletedHadithIds(prev => prev.filter(dId => String(dId) !== String(hadithItem.id)));
+      }
+    );
   };
 
   const handleAddHadith = (e: React.FormEvent) => {
@@ -101,7 +113,7 @@ export default function Hadith() {
         }
       });
     } else {
-      copyToClipboard(hadith);
+      handleCopy(e, hadith);
     }
   };
 
@@ -290,7 +302,7 @@ export default function Hadith() {
                     </button>
                     <button
                       onClick={(e) => {
-                        handleDeleteHadith(e, hadith.id);
+                        handleDeleteHadith(e, hadith);
                       }}
                       className="p-2.5 rounded-xl text-slate-300 hover:bg-rose-50 hover:text-rose-600 transition-all"
                       title="মুছে ফেলুন"
@@ -449,6 +461,22 @@ export default function Hadith() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

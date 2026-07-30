@@ -4,18 +4,20 @@ import { MessageSquare, ChevronDown, Filter, HelpCircle, Search, BookOpen, Messa
 import { masailItems, masailCategories, Masail as MasailType } from '../data/qa';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 const MasailCard: React.FC<{ 
   item: MasailType; 
   isLocal?: boolean;
   onEdit?: (item: MasailType) => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (item: MasailType) => void;
 }> = ({ item, isLocal, onEdit, onDelete }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCopy = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const text = `প্রশ্ন: ${item.question_bn}\n\nউত্তর: ${item.answer_bn}\n\nসূত্র: ${item.reference_bn}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -110,7 +112,7 @@ const MasailCard: React.FC<{
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete?.(item.id);
+                      onDelete?.(item);
                     }}
                     className="flex items-center gap-2 bg-white text-rose-600 px-5 py-3 rounded-xl font-bold border border-rose-100 hover:bg-rose-50 transition-all active:scale-95 shadow-sm"
                     title="ডিলিট"
@@ -142,7 +144,8 @@ const MasailCard: React.FC<{
 };
 
 export default function Masail() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showAskModal, setShowAskModal] = useState(false);
@@ -207,9 +210,18 @@ export default function Masail() {
     setShowAddModal(true);
   };
 
-  const handleDeleteMasail = (id: number) => {
-    setLocalMasails(prev => prev.filter(m => Number(m.id) !== Number(id)));
-    setDeletedMasailIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  const handleDeleteMasail = (item: MasailType) => {
+    const idToMatch = Number(item.id);
+    requestDelete(
+      item.question_bn,
+      () => {
+        setLocalMasails(prev => prev.filter(m => Number(m.id) !== idToMatch));
+        setDeletedMasailIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+      },
+      () => {
+        setDeletedMasailIds(prev => prev.filter(dId => Number(dId) !== idToMatch));
+      }
+    );
   };
 
   const handleSaveMasail = (e: React.FormEvent) => {
@@ -441,6 +453,22 @@ export default function Masail() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }

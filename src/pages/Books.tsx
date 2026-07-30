@@ -4,9 +4,12 @@ import { Book as BookIcon, Download, X, Search, BookOpen, Library, Plus, Trash2,
 import { books as initialBooks, Book } from '../data/books';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDeleteWithUndo } from '../hooks/useDeleteWithUndo';
+import { DeleteConfirmModal, UndoToast } from '../components/common/DeleteConfirmModal';
 
 export default function Books() {
   const { language, t } = useLanguage();
+  const { deleteDialog, undoToast, requestDelete, closeDialog, closeToast } = useDeleteWithUndo();
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [filter, setFilter] = useState<'All' | Book['category']>('All');
   const [search, setSearch] = useState('');
@@ -73,12 +76,21 @@ export default function Books() {
     });
   };
 
-  const handleDeleteBook = (id: number) => {
-    const updated = userBooks.filter(b => b.id !== id);
-    setUserBooks(updated);
-    localStorage.setItem('user_books', JSON.stringify(updated));
-    setDeletedBookIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    if (selectedBook?.id === id) setSelectedBook(null);
+  const handleDeleteBook = (bookItem: Book) => {
+    const bookTitle = language === 'bn' ? bookItem.title_bn : bookItem.title;
+    requestDelete(
+      bookTitle,
+      () => {
+        const updated = userBooks.filter(b => b.id !== bookItem.id);
+        setUserBooks(updated);
+        localStorage.setItem('user_books', JSON.stringify(updated));
+        setDeletedBookIds(prev => prev.includes(bookItem.id) ? prev : [...prev, bookItem.id]);
+        if (selectedBook?.id === bookItem.id) setSelectedBook(null);
+      },
+      () => {
+        setDeletedBookIds(prev => prev.filter(dId => String(dId) !== String(bookItem.id)));
+      }
+    );
   };
 
   const categories: ('All' | Book['category'])[] = ['All', 'Hadith', 'Seerah', 'Aqeedah', 'Fiqh', 'Other'];
@@ -212,7 +224,7 @@ export default function Books() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDeleteBook(book.id);
+                  handleDeleteBook(book);
                 }}
                 className="absolute bottom-6 right-6 p-4 bg-black/60 backdrop-blur-xl text-white rounded-full hover:bg-rose-600 transition-all opacity-80 group-hover:opacity-100 border border-white/20 hover:scale-110 z-10"
                 title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
@@ -476,6 +488,22 @@ export default function Books() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        onClose={closeDialog}
+        onConfirm={deleteDialog.onConfirm!}
+        language={language}
+      />
+
+      <UndoToast
+        isOpen={undoToast.isOpen}
+        message={undoToast.message}
+        onUndo={undoToast.onUndo!}
+        onClose={closeToast}
+        language={language}
+      />
     </div>
   );
 }
