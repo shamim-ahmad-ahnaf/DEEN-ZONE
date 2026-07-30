@@ -18,12 +18,12 @@ export default function Audio() {
   // Form State
   const [newTrack, setNewTrack] = useState({
     title: '',
-    title_bn: '',
     artist: '',
-    artist_bn: '',
     url: '',
-    category: 'Nasheed' as AudioItem['category']
+    category: 'Nasheed' as string
   });
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -33,28 +33,32 @@ export default function Audio() {
 
   const handleAddTrack = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTrack.title || !newTrack.url) return;
+    const trackTitle = newTrack.title.trim();
+    const trackArtist = newTrack.artist.trim();
+    const finalCategory = isCustomCategory ? (customCategoryInput.trim() || (language === 'bn' ? 'সাধারণ' : 'General')) : newTrack.category;
+
+    if (!trackTitle || !newTrack.url.trim()) return;
 
     const track: AudioItem = {
       id: Date.now(), // Unique ID
-      title: newTrack.title,
-      title_bn: newTrack.title_bn || newTrack.title,
-      artist: newTrack.artist || 'Unknown',
-      artist_bn: newTrack.artist_bn || newTrack.artist || 'অজানা',
-      url: newTrack.url,
-      category: newTrack.category
+      title: trackTitle,
+      title_bn: trackTitle,
+      artist: trackArtist || 'Unknown',
+      artist_bn: trackArtist || 'অজানা',
+      url: newTrack.url.trim(),
+      category: finalCategory
     };
 
     setUserTracks(prev => [...prev, track]);
     setIsAddModalOpen(false);
     setNewTrack({
       title: '',
-      title_bn: '',
       artist: '',
-      artist_bn: '',
       url: '',
       category: 'Nasheed'
     });
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
   };
 
   const handleDeleteTrack = (id: number) => {
@@ -123,11 +127,24 @@ export default function Audio() {
     }
   };
 
-  const categories: { key: AudioItem['category']; label: string; icon: any }[] = [
-    { key: 'Quran', label: language === 'bn' ? 'কুরআন তিলাওয়াত' : 'Quran', icon: Book },
-    { key: 'Nasheed', label: language === 'bn' ? 'ইসলামিক সঙ্গীত' : 'Nasheed', icon: Music },
-    { key: 'Bayan', label: language === 'bn' ? 'ইসলাহি বয়ান' : 'Bayan', icon: Mic },
-  ];
+  const categories = useMemo(() => {
+    const baseKeys = ['Quran', 'Nasheed', 'Bayan'];
+    const customKeys = Array.from(new Set(allAudioItems.map(a => a.category))).filter(c => c && !baseKeys.includes(c));
+    
+    const baseList = [
+      { key: 'Quran', label: language === 'bn' ? 'কুরআন তিলাওয়াত' : 'Quran', icon: Book },
+      { key: 'Nasheed', label: language === 'bn' ? 'ইসলামিক সঙ্গীত' : 'Nasheed', icon: Music },
+      { key: 'Bayan', label: language === 'bn' ? 'ইসলাহি বয়ান' : 'Bayan', icon: Mic },
+    ];
+
+    const customList = customKeys.map(k => ({
+      key: k,
+      label: k,
+      icon: Music
+    }));
+
+    return [...baseList, ...customList];
+  }, [allAudioItems, language]);
 
   const filteredItems = useMemo(() => {
     return allAudioItems.filter(item => {
@@ -367,61 +384,69 @@ export default function Audio() {
               </div>
 
               <form onSubmit={handleAddTrack} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Title (EN)</label>
-                    <input 
-                      required
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold text-sm"
-                      value={newTrack.title}
-                      onChange={e => setNewTrack({...newTrack, title: e.target.value})}
-                      placeholder="e.g. Hasbi Rabbi"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Title (BN)</label>
-                    <input 
-                      required
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold text-sm"
-                      value={newTrack.title_bn}
-                      onChange={e => setNewTrack({...newTrack, title_bn: e.target.value})}
-                      placeholder="উদা: হাসবি রাব্বি"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Artist (EN)</label>
-                    <input 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold text-sm"
-                      value={newTrack.artist}
-                      onChange={e => setNewTrack({...newTrack, artist: e.target.value})}
-                      placeholder="Sami Yusuf"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Artist (BN)</label>
-                    <input 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold text-sm"
-                      value={newTrack.artist_bn}
-                      onChange={e => setNewTrack({...newTrack, artist_bn: e.target.value})}
-                      placeholder="সামি ইউসুফ"
-                    />
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">
+                    {language === 'bn' ? 'শিরোনাম / টাইটেল' : 'Title'}
+                  </label>
+                  <input 
+                    required
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold text-sm"
+                    value={newTrack.title}
+                    onChange={e => setNewTrack({...newTrack, title: e.target.value})}
+                    placeholder={language === 'bn' ? 'যেমন: হাসবি রাব্বি' : 'e.g. Hasbi Rabbi'}
+                  />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Category</label>
-                  <select 
-                    className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold appearance-none cursor-pointer text-sm"
-                    value={newTrack.category}
-                    onChange={e => setNewTrack({...newTrack, category: e.target.value as any})}
-                  >
-                    <option value="Quran">{language === 'bn' ? 'কুরআন তিলাওয়াত' : 'Quran'}</option>
-                    <option value="Nasheed">{language === 'bn' ? 'ইসলামিক সঙ্গীত' : 'Nasheed'}</option>
-                    <option value="Bayan">{language === 'bn' ? 'ইসলাহি বয়ান' : 'Bayan'}</option>
-                  </select>
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">
+                    {language === 'bn' ? 'শিল্পী / কারী / বক্তা' : 'Artist / Reciter'}
+                  </label>
+                  <input 
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold text-sm"
+                    value={newTrack.artist}
+                    onChange={e => setNewTrack({...newTrack, artist: e.target.value})}
+                    placeholder={language === 'bn' ? 'যেমন: সামি ইউসুফ (ঐচ্ছিক)' : 'e.g. Sami Yusuf (Optional)'}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">
+                    {language === 'bn' ? 'ক্যাটাগরি' : 'Category'}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {categories.map(cat => (
+                      <button
+                        key={cat.key}
+                        type="button"
+                        onClick={() => {
+                          setIsCustomCategory(false);
+                          setNewTrack({...newTrack, category: cat.key});
+                        }}
+                        className={`py-3 px-2 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${(!isCustomCategory && newTrack.category === cat.key) ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomCategory(true)}
+                      className={`py-3 px-2 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${isCustomCategory ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                    >
+                      {language === 'bn' ? '+ নতুন ক্যাটাগরি' : '+ Custom Category'}
+                    </button>
+                  </div>
+
+                  {isCustomCategory && (
+                    <div className="pt-2">
+                      <input 
+                        required={isCustomCategory}
+                        className="w-full px-5 py-3 bg-emerald-50/50 border border-emerald-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold text-xs text-emerald-900"
+                        value={customCategoryInput}
+                        onChange={e => setCustomCategoryInput(e.target.value)}
+                        placeholder={language === 'bn' ? 'ক্যাটাগরির নাম লিখুন (যেমন: গজল, জিকির, দোয়া)' : 'Type category name (e.g., Gojol, Dua)'}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">

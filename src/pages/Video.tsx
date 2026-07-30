@@ -19,25 +19,38 @@ export default function Video() {
   // Form State
   const [newVideo, setNewVideo] = useState({
     title: '',
-    title_bn: '',
     speaker: '',
-    speaker_bn: '',
     youtubeId: '',
     videoUrl: '',
-    category: 'Lecture' as VideoItem['category']
+    category: 'Lecture' as string
   });
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   const allVideos = useMemo(() => {
     return [...initialVideoItems, ...userVideos].filter(v => !deletedVideoIds.some(dId => String(dId) === String(v.id)));
   }, [userVideos, deletedVideoIds]);
 
-  const categories = [
-    { key: 'All', label: language === 'bn' ? 'সবগুলো' : 'All', icon: VideoIcon },
-    { key: 'Lecture', label: language === 'bn' ? 'ইসলামিক বয়ান' : 'Lecture', icon: Mic2 },
-    { key: 'Quran', label: language === 'bn' ? 'কুরআন তিলাওয়াত' : 'Quran', icon: PlayCircle },
-    { key: 'Kids', label: language === 'bn' ? 'শিশুদের পাতা' : 'Kids', icon: Baby },
-    { key: 'Nasheed', label: language === 'bn' ? 'ইসলামিক সঙ্গীত' : 'Nasheed', icon: Music },
-  ];
+  const categories = useMemo(() => {
+    const baseKeys = ['All', 'Lecture', 'Quran', 'Kids', 'Nasheed'];
+    const customKeys = Array.from(new Set(allVideos.map(v => v.category))).filter(c => c && !baseKeys.includes(c));
+    
+    const baseList = [
+      { key: 'All', label: language === 'bn' ? 'সবগুলো' : 'All', icon: VideoIcon },
+      { key: 'Lecture', label: language === 'bn' ? 'ইসলামিক বয়ান' : 'Lecture', icon: Mic2 },
+      { key: 'Quran', label: language === 'bn' ? 'কুরআন তিলাওয়াত' : 'Quran', icon: PlayCircle },
+      { key: 'Kids', label: language === 'bn' ? 'শিশুদের পাতা' : 'Kids', icon: Baby },
+      { key: 'Nasheed', label: language === 'bn' ? 'ইসলামিক সঙ্গীত' : 'Nasheed', icon: Music },
+    ];
+
+    const customList = customKeys.map(k => ({
+      key: k,
+      label: k,
+      icon: VideoIcon
+    }));
+
+    return [...baseList, ...customList];
+  }, [allVideos, language]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,18 +102,22 @@ export default function Video() {
       finalType = 'direct';
     }
 
-    if (!newVideo.title) return;
+    if (!newVideo.title.trim()) return;
+
+    const trackTitle = newVideo.title.trim();
+    const trackSpeaker = newVideo.speaker.trim();
+    const finalCategory = isCustomCategory ? (customCategoryInput.trim() || (language === 'bn' ? 'সাধারণ' : 'General')) : newVideo.category;
 
     const track: VideoItem = {
       id: Date.now(),
-      title: newVideo.title,
-      title_bn: newVideo.title_bn || newVideo.title,
-      speaker: newVideo.speaker || 'User',
-      speaker_bn: newVideo.speaker_bn || newVideo.speaker || 'ব্যবহারকারী',
+      title: trackTitle,
+      title_bn: trackTitle,
+      speaker: trackSpeaker || 'User',
+      speaker_bn: trackSpeaker || 'ব্যবহারকারী',
       youtubeId: yid || undefined,
       videoUrl: vurl || undefined,
       type: finalType,
-      category: newVideo.category
+      category: finalCategory
     };
 
     setUserVideos(prev => [...prev, track]);
@@ -111,13 +128,13 @@ export default function Video() {
   const resetForm = () => {
     setNewVideo({
       title: '',
-      title_bn: '',
       speaker: '',
-      speaker_bn: '',
       youtubeId: '',
       videoUrl: '',
       category: 'Lecture'
     });
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
     setAddMethod('link');
   };
 
@@ -467,64 +484,69 @@ export default function Video() {
               </div>
 
               <form onSubmit={handleAddVideo} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Title (EN)</label>
-                    <input 
-                      required
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none font-bold text-sm"
-                      value={newVideo.title}
-                      onChange={e => setNewVideo({...newVideo, title: e.target.value})}
-                      placeholder="e.g. Life After Death"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Title (BN)</label>
-                    <input 
-                      required
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none font-bold text-sm"
-                      value={newVideo.title_bn}
-                      onChange={e => setNewVideo({...newVideo, title_bn: e.target.value})}
-                      placeholder="উদা: মৃত্যুর পরের জীবন"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Speaker (EN)</label>
-                    <input 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none font-bold text-sm"
-                      value={newVideo.speaker}
-                      onChange={e => setNewVideo({...newVideo, speaker: e.target.value})}
-                      placeholder="e.g. Mufti Menk"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Speaker (BN)</label>
-                    <input 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none font-bold text-sm"
-                      value={newVideo.speaker_bn}
-                      onChange={e => setNewVideo({...newVideo, speaker_bn: e.target.value})}
-                      placeholder="উদা: মুফতি মেঙ্ক"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">
+                    {language === 'bn' ? 'শিরোনাম / টাইটেল' : 'Title'}
+                  </label>
+                  <input 
+                    required
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none font-bold text-sm"
+                    value={newVideo.title}
+                    onChange={e => setNewVideo({...newVideo, title: e.target.value})}
+                    placeholder={language === 'bn' ? 'যেমন: মৃত্যুর পরের জীবন' : 'e.g. Life After Death'}
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Category</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">
+                    {language === 'bn' ? 'বক্তা / স্পিকার' : 'Speaker'}
+                  </label>
+                  <input 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none font-bold text-sm"
+                    value={newVideo.speaker}
+                    onChange={e => setNewVideo({...newVideo, speaker: e.target.value})}
+                    placeholder={language === 'bn' ? 'যেমন: মুফতি মেঙ্ক (ঐচ্ছিক)' : 'e.g. Mufti Menk (Optional)'}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">
+                    {language === 'bn' ? 'ক্যাটাগরি' : 'Category'}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {categories.filter(c => c.key !== 'All').map(cat => (
                       <button
                         key={cat.key}
                         type="button"
-                        onClick={() => setNewVideo({...newVideo, category: cat.key as any})}
-                        className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${newVideo.category === cat.key ? 'bg-rose-600 text-white shadow-md' : 'bg-slate-50 text-slate-500'}`}
+                        onClick={() => {
+                          setIsCustomCategory(false);
+                          setNewVideo({...newVideo, category: cat.key});
+                        }}
+                        className={`py-3 px-2 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${(!isCustomCategory && newVideo.category === cat.key) ? 'bg-rose-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                       >
                         {cat.label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomCategory(true)}
+                      className={`py-3 px-2 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${isCustomCategory ? 'bg-rose-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                    >
+                      {language === 'bn' ? '+ নতুন ক্যাটাগরি' : '+ Custom Category'}
+                    </button>
                   </div>
+
+                  {isCustomCategory && (
+                    <div className="pt-2">
+                      <input 
+                        required={isCustomCategory}
+                        className="w-full px-5 py-3 bg-rose-50/50 border border-rose-200 rounded-xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none font-bold text-xs text-rose-900"
+                        value={customCategoryInput}
+                        onChange={e => setCustomCategoryInput(e.target.value)}
+                        placeholder={language === 'bn' ? 'ক্যাটাগরির নাম লিখুন (যেমন: তাফসীর, সিরাত, গজল)' : 'Type category name (e.g., Tafseer, Seerah)'}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {addMethod === 'link' && (

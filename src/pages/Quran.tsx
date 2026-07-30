@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Search, Bookmark, BookmarkCheck, ArrowLeft, Loader2, Play, Pause, MessageSquare } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useLanguage } from '../contexts/LanguageContext';
+import { STATIC_SURAH_LIST } from '../data/surahStaticData';
 
 interface Surah {
   number: number;
@@ -54,10 +55,16 @@ export default function Quran() {
     const fetchSurahs = async () => {
       try {
         const res = await fetch('https://api.alquran.cloud/v1/surah');
+        if (!res.ok) throw new Error('API request failed');
         const data = await res.json();
-        setSurahList(data.data);
+        if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
+          setSurahList(data.data);
+        } else {
+          setSurahList(STATIC_SURAH_LIST);
+        }
       } catch (err) {
-        console.error('Failed to fetch surahs:', err);
+        console.error('Failed to fetch surahs, using static fallback:', err);
+        setSurahList(STATIC_SURAH_LIST);
       } finally {
         setIsLoading(false);
       }

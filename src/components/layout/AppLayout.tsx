@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { LanguageToggle } from '../common/LanguageToggle';
+import { OfflineBanner } from './OfflineBanner';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 interface AppLayoutProps {
@@ -19,6 +20,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
       className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans selection:bg-emerald-100 selection:text-emerald-900"
       style={{ fontSize: `${fontSize}px` }}
     >
+      <div className="w-full md:hidden">
+        <OfflineBanner />
+      </div>
       {/* Mobile Header */}
       <header className="md:hidden glass backdrop-blur-xl p-4 flex items-center justify-between sticky top-0 z-50 shadow-sm border-b border-slate-100">
         <div className="flex items-center gap-3">
@@ -56,6 +60,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-x-hidden pt-2 md:pt-0">
+        <div className="hidden md:block">
+          <OfflineBanner />
+        </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={window.location.pathname}
