@@ -46,15 +46,18 @@ export default function Hadith() {
   const handleDeleteHadith = (e: React.MouseEvent, hadithItem: HadithType) => {
     e.stopPropagation();
     const titleText = `${hadithItem.source_bn} - ${hadithItem.hadith_number}`;
+    const isUserHadith = userHadiths.some(h => String(h.id) === String(hadithItem.id));
     requestDelete(
       titleText,
       () => {
-        setUserHadiths(prev => prev.filter(h => h.id !== hadithItem.id));
         setDeletedHadithIds(prev => prev.includes(hadithItem.id) ? prev : [...prev, hadithItem.id]);
         if (selectedHadith?.id === hadithItem.id) setSelectedHadith(null);
       },
       () => {
         setDeletedHadithIds(prev => prev.filter(dId => String(dId) !== String(hadithItem.id)));
+        if (isUserHadith) {
+          setUserHadiths(prev => prev.some(h => String(h.id) === String(hadithItem.id)) ? prev : [...prev, hadithItem]);
+        }
       }
     );
   };

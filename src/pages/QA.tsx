@@ -223,17 +223,17 @@ export default function QA() {
   const handleDeleteQA = (item: QAItem) => {
     const idStr = String(item.id);
     const titleText = language === 'bn' ? item.question_bn : item.question;
+    const isLocal = localQA.some(q => String(q.id) === idStr);
     requestDelete(
       titleText,
       () => {
-        setLocalQA(prev => {
-          if (!Array.isArray(prev)) return [];
-          return prev.filter(q => String(q.id) !== idStr);
-        });
         setDeletedQAIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
       },
       () => {
         setDeletedQAIds(prev => prev.filter(dId => String(dId) !== idStr));
+        if (isLocal) {
+          setLocalQA(prev => prev.some(q => String(q.id) === idStr) ? prev : [...prev, item]);
+        }
       }
     );
   };

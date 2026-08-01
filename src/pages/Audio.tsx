@@ -17,6 +17,17 @@ export default function Audio() {
   const [userTracks, setUserTracks] = useLocalStorage<AudioItem[]>('user_audio_tracks', []);
   const [deletedAudioIds, setDeletedAudioIds] = useLocalStorage<number[]>('deleted_audio_ids', []);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Restore Surah Al-Fatihah (1) and Surah Al-Baqarah (2) if they were previously marked deleted
+  useEffect(() => {
+    if (deletedAudioIds.some(id => Number(id) === 1 || Number(id) === 2)) {
+      setDeletedAudioIds(prev => prev.filter(id => Number(id) !== 1 && Number(id) !== 2));
+    }
+  }, []);
+
+  const handleRestoreAllDeleted = () => {
+    setDeletedAudioIds([]);
+  };
   
   // Form State
   const [newTrack, setNewTrack] = useState({
@@ -66,6 +77,7 @@ export default function Audio() {
 
   const confirmDeleteTrack = (item: AudioItem) => {
     const trackTitle = language === 'bn' ? item.title_bn : item.title;
+    const isUserTrack = userTracks.some(t => String(t.id) === String(item.id));
     requestDelete(
       trackTitle,
       () => {
@@ -73,11 +85,13 @@ export default function Audio() {
           audioRef.current?.pause();
           setPlayingId(null);
         }
-        setUserTracks(prev => prev.filter(t => t.id !== item.id));
         setDeletedAudioIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
       },
       () => {
         setDeletedAudioIds(prev => prev.filter(dId => String(dId) !== String(item.id)));
+        if (isUserTrack) {
+          setUserTracks(prev => prev.some(t => String(t.id) === String(item.id)) ? prev : [...prev, item]);
+        }
       }
     );
   };
@@ -219,9 +233,19 @@ export default function Audio() {
               </button>
             ))}
             
+            {deletedAudioIds.length > 0 && (
+              <button
+                onClick={handleRestoreAllDeleted}
+                className="px-4 py-2 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full hover:bg-emerald-200 transition-all"
+                title={language === 'bn' ? 'মুছে ফেলা সব অডিও ফিরিয়ে আনুন' : 'Restore all deleted audio'}
+              >
+                {language === 'bn' ? 'সব পুনরুদ্ধার' : 'Restore All'}
+              </button>
+            )}
+
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="ml-auto p-3 bg-white text-emerald-600 border border-slate-100 rounded-full shadow-sm hover:bg-emerald-50 transition-all active:scale-90"
+              className="ml-auto p-3 bg-white text-emerald-600 border border-slate-100 rounded-full shadow-sm hover:bg-emerald-50 transition-all active:scale-90 flex-shrink-0"
               title={language === 'bn' ? 'অডিও যোগ করুন' : 'Add Audio'}
             >
               <Plus size={24} />

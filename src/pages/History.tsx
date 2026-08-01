@@ -106,10 +106,10 @@ export default function History() {
     e.stopPropagation();
     const idToMatch = Number(eventItem.id);
     const titleText = language === 'bn' ? eventItem.title_bn : eventItem.title;
+    const isLocal = localHistory.some(h => Number(h.id) === idToMatch);
     requestDelete(
       titleText,
       () => {
-        setLocalHistory(prev => prev.filter(h => Number(h.id) !== idToMatch));
         setDeletedHistoryIds(prev => prev.includes(idToMatch) ? prev : [...prev, idToMatch]);
         if (selectedEvent && Number(selectedEvent.id) === idToMatch) {
           setSelectedEvent(null);
@@ -117,6 +117,9 @@ export default function History() {
       },
       () => {
         setDeletedHistoryIds(prev => prev.filter(dId => String(dId) !== String(idToMatch)));
+        if (isLocal) {
+          setLocalHistory(prev => prev.some(h => Number(h.id) === idToMatch) ? prev : [...prev, eventItem]);
+        }
       }
     );
   };

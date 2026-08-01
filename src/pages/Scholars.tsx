@@ -106,14 +106,10 @@ export default function Scholars() {
   const handleDeleteScholar = (e: React.MouseEvent, scholarItem: Scholar) => {
     e.stopPropagation();
     const titleText = language === 'bn' ? scholarItem.name_bn : scholarItem.name;
+    const isLocal = localScholars.some(s => String(s.id) === String(scholarItem.id));
     requestDelete(
       titleText,
       () => {
-        setLocalScholars(prev => {
-          if (!Array.isArray(prev)) return [];
-          const idStr = String(scholarItem.id);
-          return prev.filter(s => String(s.id) !== idStr);
-        });
         setDeletedScholarIds(prev => prev.includes(scholarItem.id) ? prev : [...prev, scholarItem.id]);
         if (selectedScholar && String(selectedScholar.id) === String(scholarItem.id)) {
           setSelectedScholar(null);
@@ -121,6 +117,9 @@ export default function Scholars() {
       },
       () => {
         setDeletedScholarIds(prev => prev.filter(dId => String(dId) !== String(scholarItem.id)));
+        if (isLocal) {
+          setLocalScholars(prev => prev.some(s => String(s.id) === String(scholarItem.id)) ? prev : [...prev, scholarItem]);
+        }
       }
     );
   };

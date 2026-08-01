@@ -40,15 +40,18 @@ export default function Articles() {
 
   const handleDeleteArticle = (articleItem: Article) => {
     const titleText = language === 'bn' ? articleItem.title_bn : articleItem.title;
+    const isUserArticle = userArticles.some(a => String(a.id) === String(articleItem.id));
     requestDelete(
       titleText,
       () => {
-        setUserArticles(prev => prev.filter(a => a.id !== articleItem.id));
         setDeletedArticleIds(prev => prev.includes(articleItem.id) ? prev : [...prev, articleItem.id]);
         if (selectedArticle?.id === articleItem.id) setSelectedArticle(null);
       },
       () => {
         setDeletedArticleIds(prev => prev.filter(dId => String(dId) !== String(articleItem.id)));
+        if (isUserArticle) {
+          setUserArticles(prev => prev.some(a => String(a.id) === String(articleItem.id)) ? prev : [...prev, articleItem]);
+        }
       }
     );
   };

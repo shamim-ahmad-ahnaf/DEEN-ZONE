@@ -78,17 +78,22 @@ export default function Books() {
 
   const handleDeleteBook = (bookItem: Book) => {
     const bookTitle = language === 'bn' ? bookItem.title_bn : bookItem.title;
+    const isUserBook = userBooks.some(b => String(b.id) === String(bookItem.id));
     requestDelete(
       bookTitle,
       () => {
-        const updated = userBooks.filter(b => b.id !== bookItem.id);
-        setUserBooks(updated);
-        localStorage.setItem('user_books', JSON.stringify(updated));
         setDeletedBookIds(prev => prev.includes(bookItem.id) ? prev : [...prev, bookItem.id]);
         if (selectedBook?.id === bookItem.id) setSelectedBook(null);
       },
       () => {
         setDeletedBookIds(prev => prev.filter(dId => String(dId) !== String(bookItem.id)));
+        if (isUserBook) {
+          setUserBooks(prev => {
+            const updated = prev.some(b => String(b.id) === String(bookItem.id)) ? prev : [...prev, bookItem];
+            localStorage.setItem('user_books', JSON.stringify(updated));
+            return updated;
+          });
+        }
       }
     );
   };

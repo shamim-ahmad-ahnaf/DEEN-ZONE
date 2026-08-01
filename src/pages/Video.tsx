@@ -143,14 +143,17 @@ export default function Video() {
 
   const confirmDeleteVideo = (video: VideoItem) => {
     const videoTitle = language === 'bn' ? video.title_bn : video.title;
+    const isUserVideo = userVideos.some(v => String(v.id) === String(video.id));
     requestDelete(
       videoTitle,
       () => {
-        setUserVideos(prev => prev.filter(v => v.id !== video.id));
         setDeletedVideoIds(prev => prev.includes(video.id) ? prev : [...prev, video.id]);
       },
       () => {
         setDeletedVideoIds(prev => prev.filter(dId => String(dId) !== String(video.id)));
+        if (isUserVideo) {
+          setUserVideos(prev => prev.some(v => String(v.id) === String(video.id)) ? prev : [...prev, video]);
+        }
       }
     );
   };

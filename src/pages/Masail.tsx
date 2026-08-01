@@ -212,14 +212,17 @@ export default function Masail() {
 
   const handleDeleteMasail = (item: MasailType) => {
     const idToMatch = Number(item.id);
+    const isLocal = localMasails.some(m => Number(m.id) === idToMatch);
     requestDelete(
       item.question_bn,
       () => {
-        setLocalMasails(prev => prev.filter(m => Number(m.id) !== idToMatch));
         setDeletedMasailIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
       },
       () => {
         setDeletedMasailIds(prev => prev.filter(dId => Number(dId) !== idToMatch));
+        if (isLocal) {
+          setLocalMasails(prev => prev.some(m => Number(m.id) === idToMatch) ? prev : [...prev, item]);
+        }
       }
     );
   };

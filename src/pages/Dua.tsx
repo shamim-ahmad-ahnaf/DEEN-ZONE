@@ -45,15 +45,18 @@ export default function Dua() {
 
   const handleDeleteDua = (e: React.MouseEvent, duaItem: DuaType) => {
     e.stopPropagation();
+    const isUserDua = userDuas.some(d => String(d.id) === String(duaItem.id));
     requestDelete(
       duaItem.title_bn,
       () => {
-        setUserDuas(prev => prev.filter(d => d.id !== duaItem.id));
         setDeletedDuaIds(prev => prev.includes(duaItem.id) ? prev : [...prev, duaItem.id]);
         if (selectedDua?.id === duaItem.id) setSelectedDua(null);
       },
       () => {
         setDeletedDuaIds(prev => prev.filter(dId => String(dId) !== String(duaItem.id)));
+        if (isUserDua) {
+          setUserDuas(prev => prev.some(d => String(d.id) === String(duaItem.id)) ? prev : [...prev, duaItem]);
+        }
       }
     );
   };
